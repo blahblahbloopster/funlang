@@ -53,7 +53,7 @@ class UwUParser {
 
         val methodDeclarations = mutableListOf<ProtoMethod>()
 
-        val methodStartRegex = "(${Keyword.STATIC.uwuified} )?(${Keyword.FUN.uwuified}) (\\w+\\.)+(\\w+)".toRegex()
+//        val methodStartRegex = "(${Keyword.STATIC.uwuified} )?(${Keyword.FUN.uwuified}) (\\w+\\.)+(\\w+)".toRegex()
         val methodStarts = lines.withIndex().filter { (_, it) -> it.startsWith(Keyword.FUN.uwuified + " ") }
         for (item in methodStarts) {
             var braceCount = 0
@@ -64,7 +64,7 @@ class UwUParser {
                 i++
             }
             val range = item.index + 1 until i
-            methodDeclarations.add(reprocess(lines.slice(range), stringLiterals.map { it.second }))
+//            methodDeclarations.add(reprocess(lines.slice(range), stringLiterals.map { it.second }))
         }
 
         println("struct declarations: $structDeclarations")
