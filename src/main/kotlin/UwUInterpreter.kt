@@ -1,4 +1,5 @@
 import UwUMem.currentFlag
+import UwUMem.data
 import UwUMem.nil
 import UwUPrimitive.UwUDouble.long
 import stdlib.UwUString

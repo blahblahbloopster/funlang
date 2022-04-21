@@ -87,7 +87,7 @@ interface UwUConstructor {
 object UwUMem {
     var currentFlag = false
 
-    // 8 MiB ought to be enough for anybody
+    // 8 KiB ought to be enough for anybody
     val data = LongArray(1024)
 
     val tree = MemoryBlock(data.indices)
@@ -217,7 +217,6 @@ object UwUMem {
 //        }
 //        tree.freeEmpty()
         currentFlag = !currentFlag
-        println("roots: $rootObjects")
         rootObjects.forEach { mark(it) }
         sweep()
     }
