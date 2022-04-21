@@ -2,7 +2,7 @@ import stdlib.UwUString
 
 class UwUParser {
     enum class Keyword(val uwuified: String) {
-        FUN("fuwn"), RETURN("wetuwn"), BREAK("bweak"), CONTINUE("continuwue"), IF("if"), ELSE("ewse"), LET("wet"), MUT("mewt"), WHILE("whiwe")
+        FUN("fuwn"), RETURN("wetuwn"), BREAK("bweak"), CONTINUE("continuwue"), IF("if"), ELSE("ewse"), LET("wet"), MUT("mewt"), WHILE("whiwe"), IMPORT("impowt"), STRUCT("stwuct"), STATIC("static")
     }
 
     data class DefinedVariable(val name: String, val type: UwUType)
@@ -15,6 +15,60 @@ class UwUParser {
 
     data class Scope(val parents: List<Scope>, val variables: MutableList<DefinedVariable>, val imports: List<UwUImport>) {
         val allVariables get() = parents.flatMap { it.variables } + variables
+    }
+
+    /*
+
+    To parse a file (multiple files can be copy/pasted together with some import fiddling):
+    1. find struct and method bodies
+      a. yeet string literals
+      b. do brace matches
+      c. profit
+    2. instantiate structs with name and no fields
+     a. for now use null constructor
+    3. add fields to structs
+    4. parse method bodies
+     a. add each parsed method to the appropriate struct
+
+    */
+
+    fun parseFile(inp: String) {
+        var str = inp
+
+        // TODO: number constants
+
+        val stringLiterals = findStrings(str)
+
+        for ((index, item) in stringLiterals.withIndex().reversed()) {
+            str = str.replaceRange(item.first, "%str$index")
+        }
+
+        val lines = inp.split(';').flatMap { it.replace("{", ";{;").replace("}", ";};").split(';') }.map { it.dropWhile { it.isWhitespace() }.dropLastWhile { it.isWhitespace() } }
+
+        val imports = lines.filter { it.startsWith(Keyword.IMPORT.uwuified + " ") }.map { it.substringAfterLast(' ') }
+
+        val structDeclarations = lines.filter { it.startsWith(Keyword.STRUCT.uwuified + " ") }.map { it.removePrefix(Keyword.STRUCT.uwuified + " ").substringBefore('{').dropLastWhile { it.isWhitespace() } }
+
+        data class ProtoMethod(val clsName: UwUName, val methodName: String, val isStatic: Boolean, val args: List<Pair<String, UwUType>>, val methodBody: String)
+
+        val methodDeclarations = mutableListOf<ProtoMethod>()
+
+        val methodStartRegex = "(${Keyword.STATIC.uwuified} )?(${Keyword.FUN.uwuified}) (\\w+\\.)+(\\w+)".toRegex()
+        val methodStarts = lines.withIndex().filter { (_, it) -> it.startsWith(Keyword.FUN.uwuified + " ") }
+        for (item in methodStarts) {
+            var braceCount = 0
+            var i = item.index
+            for (line in lines.drop(item.index)) {
+                if ('{' in line) braceCount++
+                if ('}' in line && --braceCount == 0) break
+                i++
+            }
+            val range = item.index + 1 until i
+            methodDeclarations.add(reprocess(lines.slice(range), stringLiterals.map { it.second }))
+        }
+
+        println("struct declarations: $structDeclarations")
+        println("imports: $imports")
     }
 
     sealed interface ScopeNode {
@@ -433,50 +487,42 @@ class UwUParser {
 }
 
 fun main() {
-//    val p = UwUParser()
-//
-//    val scope = UwUParser.Scope(
-//        listOf(),
-//        mutableListOf(),
-//        listOf(UwUParser.UwUImport(stdlib.System.name, "pwintwn"))
-//    )
-//
-//    val phase1 = p.phaseOneExpression("pwintwn(\"Hewwo, world!\")")
-//    val assembled = p.assemble(scope, phase1)
-//
-//    val inter = UwUInterpreter()
-//
-//    inter.evaluateExpression(assembled, UwUInterpreter.ExecutionScope(null, mutableMapOf()))
     val parser = UwUParser()
 
-    val scope = UwUParser.Scope(listOf(), mutableListOf(), listOf(UwUParser.UwUImport(stdlib.System.name, "pwintwn")))
-
-    val block = parser.parse(scope, """
-        mewt nuwm = 0;
-        whiwe (nuwm.wessthan(1000)) {
-            pwintwn("Hewwo, wowd!");
-            nuwm = nuwm.pwus(1);
+    val inp = """
+        impowt uwu.System.pwintwn;
+        
+        stwuct UwUBlah {
+            fiewd1: UwUFoo
         }
-    """.trimIndent())
-//    println(block)
-    val inter = UwUInterpreter()
-    val eScope = UwUInterpreter.ExecutionScope(null, mutableListOf(), mutableSetOf())
-    block.exec(eScope, inter)
+        
+        stwuct UwUFoo {
+            fiewd1: Wong,
+            fiewd2: Doubwe
+        }
+        
+        fuwn UwUBlah.fwobnicate(awg: UwUFoo): Wong {
+            wetuwn 12;
+        }
+    """.trimIndent()
+    parser.parseFile(inp)
 
-    UwUMem.gcAll()
-
-    println("This should contain only the root node")
-    println(UwUMem.tree.findAllocated())
-//    val condition = parser.assemble(scope, parser.phaseOneExpression("1.eqwals(1)"))
+//    val scope = UwUParser.Scope(listOf(), mutableListOf(), listOf(UwUParser.UwUImport(stdlib.System.name, "pwintwn")))
 //
-//    val block = parser.assemble(scope, parser.phaseOneExpression("pwintwn(\"Hewwo, world!\")"))
-//
+//    val block = parser.parse(scope, """
+//        mewt nuwm = 0;
+//        whiwe (nuwm.wessthan(1000)) {
+//            pwintwn("Hewwo, wowwd!");
+//            nuwm = nuwm.pwus(1);
+//        }
+//    """.trimIndent())
+////    println(block)
 //    val inter = UwUInterpreter()
-//    val eScope = UwUInterpreter.ExecutionScope(null, mutableMapOf())
+//    val eScope = UwUInterpreter.ExecutionScope(null, mutableListOf(), mutableSetOf())
+//    block.exec(eScope, inter)
 //
-//    val tree = UwUParser.ScopeNode.WhileLoopNode(scope, condition,
-//        UwUParser.ScopeNode.StatementListNode(scope,
-//            listOf(UwUParser.ScopeNode.ExpressionNode(scope, block))))
+//    UwUMem.gc()
 //
-//    tree.exec(eScope, inter)
+//    println("This should contain only the root node")
+//    println(UwUMem.tree.findAllocated())
 }

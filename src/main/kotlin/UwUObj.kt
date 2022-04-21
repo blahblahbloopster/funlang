@@ -87,8 +87,8 @@ interface UwUConstructor {
 object UwUMem {
     var currentFlag = false
 
-    // 8 KiB ought to be enough for anybody
-    val data = LongArray(1024)
+    // 8 MiB ought to be enough for anybody
+    val data = LongArray(1024 * 1024)
 
     val tree = MemoryBlock(data.indices)
 
@@ -175,15 +175,6 @@ object UwUMem {
         }
     }
 
-//    private fun gcRound() {
-//        val freeable = tree.findAllocated().filter { it.refs == 0 }.sortedBy { it.allocationTime }.run { take(size / 2) }
-//        for (item in freeable) {
-//            item.type.free(UwUObject.UwURef(item, item.type))
-////            item.free()
-//        }
-//        tree.freeEmpty2()
-//    }
-
     private fun mark(obj: MemoryBlock) {
         if (obj.gcFlag == currentFlag) return  // no loops
         obj.gcFlag = currentFlag
@@ -209,21 +200,9 @@ object UwUMem {
     val rootObjects = mutableListOf<MemoryBlock>()
 
     fun gc() {
-//        gcRound()
-//        gcRound()
-//        for (item in tree.findFreeable()) {
-//            if (item.refs != 0) continue
-//            item.type.free(UwUObject.UwURef(item, item.type))
-//        }
-//        tree.freeEmpty()
         currentFlag = !currentFlag
         rootObjects.forEach { mark(it) }
         sweep()
-    }
-
-    fun gcAll() {
-//        tree.freeEmpty()
-        gc()
     }
 
     fun malloc(sizeWords: Int, type: UwUType): MemoryBlock {
@@ -300,12 +279,12 @@ class UwUName(vararg val names: String) {
 
 open class UwUStruct(
     name: UwUName,
-    val fields: List<UwuField>,
-    override val methods: List<UwUMethod>,
+    val fields: MutableList<UwuField>,
+    override val methods: MutableList<UwUMethod>,
     override val constructor: UwUConstructor
 ) : UwUType(name) {
     override val isStatic: Boolean = false
-    val sizeWords = (fields.maxOfOrNull { it.offset } ?: -1) + 1
+    val sizeWords get() = (fields.maxOfOrNull { it.offset } ?: -1) + 1
 
     override fun free(obj: UwUObject) {}
 
