@@ -1,3 +1,4 @@
+import UwUMem.currentFlag
 import UwUMem.malloc
 import UwUMem.nil
 
@@ -23,6 +24,8 @@ sealed class UwUType(val name: UwUName) {
             data[offset] = obj.address.area.first.toLong()
         }
     }
+
+    abstract fun refs(obj: UwUObject): List<UwUObject>
 
     abstract fun free(obj: UwUObject)
 
@@ -82,19 +85,41 @@ interface UwUConstructor {
 }
 
 object UwUMem {
+    var currentFlag = false
+
     // 8 MiB ought to be enough for anybody
     val data = LongArray(1024)
 
     val tree = MemoryBlock(data.indices)
 
     class MemoryBlock(val area: IntRange) {
-        var refs: Int = 0
         var left: MemoryBlock? = null
         var right: MemoryBlock? = null
         var available: Boolean = true
         val size get() = area.last + 1 - area.first
         var type: UwUType = UwUPrimitive.UwuVoid
-        var allocationTime = 0L
+        var gcFlag = currentFlag
+
+        fun findInUse(): List<MemoryBlock> {
+            return if (!available) {
+                listOf(this)
+            } else {
+                (left?.findAllocated() ?: emptyList()) + (right?.findAllocated() ?: emptyList())
+            }
+        }
+
+        fun removeEmpty(): Boolean {
+            if (!available) return false
+            if (left == null && right == null) return true
+            val l = left?.removeEmpty() != false
+            if (l) left = null
+            val r = right?.removeEmpty() != false
+            if (r) right = null
+            if (l && r) {
+                return true
+            }
+            return false
+        }
 
         fun findAllocated(): List<MemoryBlock> {
             return if (left == null && right == null) {
@@ -111,54 +136,6 @@ object UwUMem {
             right = null
             available = true
             type = UwUPrimitive.UwuVoid
-            allocationTime = 0
-            refs = 0
-        }
-
-        fun findFreeable(): List<MemoryBlock> {
-            return if (left == null && right == null && available) {
-                listOf(this)
-            } else if (!available) {
-                if (refs == 0) listOf(this) else emptyList()
-            } else {
-                val l = left?.findFreeable() ?: emptyList()
-                val r = right?.findFreeable() ?: emptyList()
-                l + r
-            }
-        }
-
-        fun freeEmpty(): Boolean {
-            return if (left == null && right == null && available) {
-                true
-            } else if (!available) {
-                refs == 0 && (System.nanoTime() - allocationTime) > 1000_000L
-            } else {
-                val l = left?.freeEmpty() != false
-                val r = right?.freeEmpty() != false
-                if (l) left = null
-                if (r) right = null
-                l && r
-            }
-        }
-
-        fun freeEmpty2(): Boolean {
-            return if (left == null && right == null && available) {
-                true
-            } else if (!available) {
-                false
-            } else {
-                val l = left?.freeEmpty2() != false
-                val r = right?.freeEmpty2() != false
-                if (l) {
-                    left?.free()
-                    left = null
-                }
-                if (r) {
-                    right?.free()
-                    right = null
-                }
-                l && r
-            }
         }
 
         fun lowestAllocated(start: Long): MemoryBlock? {
@@ -176,15 +153,7 @@ object UwUMem {
         }
 
         override fun toString(): String {
-            return "$type at $area with $refs refs"
-        }
-
-        fun incRefs() {
-//            if (inSafetyZone) {
-//                inSafetyZone = false
-//                return
-//            }
-            refs++
+            return "$type at $area"
         }
 
         fun findFree(sizeWords: Int, type: UwUType): MemoryBlock? {
@@ -192,7 +161,7 @@ object UwUMem {
             val midpoint = (area.first + area.last + 1) / 2
             return when {
                 !available -> null
-                size == bucketSize && left == null && right == null -> this.apply { allocationTime = System.nanoTime(); available = false; this.type = type; refs = 0 }
+                size == bucketSize && left == null && right == null -> this.apply { available = false; this.type = type;  }
                 size < bucketSize -> null
                 size > bucketSize -> {
                     if (left == null) MemoryBlock(area.first until midpoint).also { left = it }
@@ -206,23 +175,51 @@ object UwUMem {
         }
     }
 
-    private fun gcRound() {
-        val freeable = tree.findAllocated().filter { it.refs == 0 }.sortedBy { it.allocationTime }.run { take(size / 2) }
-        for (item in freeable) {
-            item.type.free(UwUObject.UwURef(item, item.type))
-//            item.free()
+//    private fun gcRound() {
+//        val freeable = tree.findAllocated().filter { it.refs == 0 }.sortedBy { it.allocationTime }.run { take(size / 2) }
+//        for (item in freeable) {
+//            item.type.free(UwUObject.UwURef(item, item.type))
+////            item.free()
+//        }
+//        tree.freeEmpty2()
+//    }
+
+    private fun mark(obj: MemoryBlock) {
+        if (obj.gcFlag == currentFlag) return  // no loops
+        obj.gcFlag = currentFlag
+        val refs = obj.type.refs(obj.type.getObj(data, obj.area.first)).mapNotNull { (it as? UwUObject.UwURef)?.address }
+        for (item in refs) {
+            mark(item)
         }
-        tree.freeEmpty2()
     }
+
+    private fun sweep() {
+        var i = 0
+        val objs = tree.findAllocated()
+        for (allocated in objs) {
+            if (!allocated.available && allocated.gcFlag != currentFlag) {
+                i++
+                allocated.free()
+            }
+        }
+        println("Swept $i of ${objs.size} objects")
+        tree.removeEmpty()
+    }
+
+    val rootObjects = mutableListOf<MemoryBlock>()
 
     fun gc() {
 //        gcRound()
 //        gcRound()
-        for (item in tree.findFreeable()) {
-            if (item.refs != 0) continue
-            item.type.free(UwUObject.UwURef(item, item.type))
-        }
-        tree.freeEmpty()
+//        for (item in tree.findFreeable()) {
+//            if (item.refs != 0) continue
+//            item.type.free(UwUObject.UwURef(item, item.type))
+//        }
+//        tree.freeEmpty()
+        currentFlag = !currentFlag
+        println("roots: $rootObjects")
+        rootObjects.forEach { mark(it) }
+        sweep()
     }
 
     fun gcAll() {
@@ -244,7 +241,11 @@ object UwUMem {
 sealed interface UwUObject {
     val type: UwUType
 
-    data class UwURef(val address: UwUMem.MemoryBlock, override val type: UwUType) : UwUObject
+    data class UwURef(val address: UwUMem.MemoryBlock, override val type: UwUType) : UwUObject {
+        fun keepalive() {
+            address.gcFlag = currentFlag
+        }
+    }
 
     data class UwUStatic(var value: Long, override val type: UwUType) : UwUObject
 }
@@ -252,6 +253,8 @@ sealed interface UwUObject {
 sealed class UwUPrimitive(name: UwUName) : UwUType(name) {
     override val isStatic: Boolean = true
     override fun free(obj: UwUObject) {}
+
+    override fun refs(obj: UwUObject): List<UwUObject> = emptyList()
 
     object UwuVoid : UwUPrimitive(UwUName("uwu", "Void")) {
         override val methods: List<UwUMethod> = emptyList()
@@ -305,21 +308,15 @@ open class UwUStruct(
     override val isStatic: Boolean = false
     val sizeWords = (fields.maxOfOrNull { it.offset } ?: -1) + 1
 
-    override fun free(obj: UwUObject) {
-        for (item in fields) {
-            val o = field(obj as UwUObject.UwURef, item)
-            (o as? UwUObject.UwURef)?.run { address.refs-- }
-        }
-    }
+    override fun free(obj: UwUObject) {}
+
+    override fun refs(obj: UwUObject): List<UwUObject> = fields.map { field(obj as UwUObject.UwURef, it) }.filter { !it.type.isStatic }
 
     fun field(obj: UwUObject.UwURef, field: UwuField): UwUObject {
         return field.type.getObj(UwUMem.data, obj.address.area.first + field.offset)
     }
 
     fun setField(obj: UwUObject.UwURef, field: UwuField, value: UwUObject) {
-        if (value is UwUObject.UwURef) value.address.incRefs()
-        val old = field(obj, field)
-        if (old is UwUObject.UwURef) old.address.refs--
         field.type.putObj(UwUMem.data, obj.address.area.first + field.offset, value)
     }
 }
@@ -343,10 +340,7 @@ class UwUArray private constructor(val type: UwUType) : UwUType(UwUName("uwu", "
             val index = (b[0] as UwUObject.UwUStatic).value
             val toPut = b[1]
             val addr = (a as UwUObject.UwURef).address.area.first + index + 1
-            val old = type.getObj(UwUMem.data, addr.toInt())
-            if (old is UwUObject.UwURef) old.address.refs--
             type.putObj(UwUMem.data, addr.toInt(), toPut)
-            if (toPut is UwUObject.UwURef) toPut.address.incRefs()
             nil
         },
         UwUMethod.NativeMethod("getSize", emptyList(), UwUPrimitive.UwULong) { a, b ->
@@ -361,14 +355,9 @@ class UwUArray private constructor(val type: UwUType) : UwUType(UwUName("uwu", "
     }
     override val isStatic = false
 
-    override fun free(obj: UwUObject) {
-        val start = (obj as UwUObject.UwURef).address.area.first
-        val size = UwUMem.data[start].toInt()
-        for (i in start + 1 .. start + size) {
-            val item = type.getObj(UwUMem.data, i)
-            if (item is UwUObject.UwURef) item.address.refs--
-        }
-    }
+    override fun free(obj: UwUObject) {}
+
+    override fun refs(obj: UwUObject): List<UwUObject> = if (obj is UwUObject.UwUStatic) emptyList() else items(obj as UwUObject.UwURef).filter { !it.type.isStatic }
 
     fun items(obj: UwUObject.UwURef): List<UwUObject> {
         val start = obj.address.area.first
@@ -385,8 +374,6 @@ class UwUArray private constructor(val type: UwUType) : UwUType(UwUName("uwu", "
         val start = obj.address.area.first
         val size = UwUMem.data[start].toInt()
         for ((n, i) in (start + 1 .. start + size).withIndex()) {
-            val item = type.getObj(UwUMem.data, i)
-            if (item is UwUObject.UwURef) item.address.refs--
             items[n].type.putObj(UwUMem.data, i, items[n])
         }
     }

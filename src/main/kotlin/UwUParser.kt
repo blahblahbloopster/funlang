@@ -43,11 +43,11 @@ class UwUParser {
 
             override fun exec(eScope: UwUInterpreter.ExecutionScope, interpreter: UwUInterpreter) {
                 val newValue = interpreter.evaluateExpression(expression, eScope)
-                (newValue as? UwUObject.UwURef)?.run { address.incRefs() }
 
+                (newValue as? UwUObject.UwURef)?.let { eScope.addRoot(it) }
                 val existing = eScope.variables.find { it.name == variable.name }
+                (existing?.value as? UwUObject.UwURef)?.let { eScope.addRoot(it) }
                 if (existing != null) {
-                    (existing.value as? UwUObject.UwURef)?.run { address.refs-- }
                     existing.value = newValue
                 } else {
                     eScope.variables.add(UwUInterpreter.UwUVar(variable.name, newValue))
@@ -66,7 +66,7 @@ class UwUParser {
 
             override fun exec(eScope: UwUInterpreter.ExecutionScope, interpreter: UwUInterpreter) {
                 while (cond(eScope, interpreter)) {
-                    val subScope = UwUInterpreter.ExecutionScope(eScope, eScope.variables.toMutableList())
+                    val subScope = UwUInterpreter.ExecutionScope(eScope, eScope.variables.toMutableList(), mutableSetOf())
                     block.exec(subScope, interpreter)
                 }
             }
@@ -92,6 +92,16 @@ class UwUParser {
             str = str.replace("%str$index", "\"$item\"")  // TODO: re-escape
         }
         return str.replace("\n;", "")
+    }
+    private fun reprocessExpression(expr: String, stringConstants: List<String>, numberConstants: List<Number>): String {
+        var str = expr
+        for ((index, item) in stringConstants.withIndex()) {
+            str = str.replace("%str$index", "\"$item\"")  // TODO: re-escape
+        }
+        for ((index, item) in numberConstants.withIndex()) {
+            str = str.replace("%num$index", "$item")  // TODO: re-escape
+        }
+        return str
     }
 
     fun parse(scope: Scope, block: String): ScopeNode.StatementListNode {
@@ -123,7 +133,7 @@ class UwUParser {
                     Keyword.ELSE.uwuified -> { TODO("else") }
                     in listOf(Keyword.LET.uwuified, Keyword.MUT.uwuified) -> {
                         val expression = line.substringAfter("=").dropWhile { it.isWhitespace() }
-                        val expr = assemble(scope, phaseOneExpression(expression))
+                        val expr = assemble(scope, phaseOneExpression(reprocessExpression(expression, stringConstants.map { it.second }, emptyList()/*TODO*/)))
                         val variable = DefinedVariable(line.substringBefore("=").dropWhile { !it.isWhitespace() }.replace(" ", ""), expr.type)
                         statements.add(ScopeNode.VariableSetNode(scope, variable, expr))
                         scope.variables.add(variable)
@@ -443,14 +453,14 @@ fun main() {
 
     val block = parser.parse(scope, """
         mewt nuwm = 0;
-        whiwe (nuwm.wessthan(57)) {
+        whiwe (nuwm.wessthan(1000)) {
             pwintwn("Hewwo, wowd!");
             nuwm = nuwm.pwus(1);
         }
     """.trimIndent())
 //    println(block)
     val inter = UwUInterpreter()
-    val eScope = UwUInterpreter.ExecutionScope(null, mutableListOf())
+    val eScope = UwUInterpreter.ExecutionScope(null, mutableListOf(), mutableSetOf())
     block.exec(eScope, inter)
 
     UwUMem.gcAll()

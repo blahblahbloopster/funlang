@@ -3,11 +3,11 @@
 ## UwuWang
 ### Vewsion Zewo Point Wum
 UwuWang is a WIP stwict typed wanguage
-wif wefcounting and stwucts.  The
-wefewence intewpwetew is wittem in
-kotwin.
+wif a mawk awnd sweep gawbage cowwectow 
+and stwucts.  The wefewence intewpwetew 
+is wittem in kotwin.
 
-#### Reserved keywords:
+#### Wesewved keywowds:
 - fuwn
 - wetuwn
 - bweak
