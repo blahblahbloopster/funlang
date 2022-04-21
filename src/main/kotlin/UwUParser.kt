@@ -43,7 +43,7 @@ class UwUParser {
 
             override fun exec(eScope: UwUInterpreter.ExecutionScope, interpreter: UwUInterpreter) {
                 val newValue = interpreter.evaluateExpression(expression, eScope)
-                (newValue as? UwUObject.UwURef)?.run { address.refs++ }
+                (newValue as? UwUObject.UwURef)?.run { address.incRefs() }
 
                 val existing = eScope.variables.find { it.name == variable.name }
                 if (existing != null) {
@@ -443,7 +443,7 @@ fun main() {
 
     val block = parser.parse(scope, """
         mewt nuwm = 0;
-        whiwe (nuwm.wessthan(5)) {
+        whiwe (nuwm.wessthan(57)) {
             pwintwn("Hewwo, wowd!");
             nuwm = nuwm.pwus(1);
         }
@@ -453,18 +453,9 @@ fun main() {
     val eScope = UwUInterpreter.ExecutionScope(null, mutableListOf())
     block.exec(eScope, inter)
 
-    println(UwUMem.tree.findAllocated())
+    UwUMem.gcAll()
 
-    var i = 0
-    UwUMem.tree.findAllocated().forEach { if (it.refs == 0) {
-        i++
-        it.type.free(UwUObject.UwURef(it, it.type))
-    } }
-
-    println(UwUMem.tree.findAllocated())
-
-    UwUMem.tree.freeEmpty()
-
+    println("This should contain only the root node")
     println(UwUMem.tree.findAllocated())
 //    val condition = parser.assemble(scope, parser.phaseOneExpression("1.eqwals(1)"))
 //

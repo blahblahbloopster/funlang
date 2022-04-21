@@ -83,7 +83,7 @@ interface UwUConstructor {
 
 object UwUMem {
     // 8 MiB ought to be enough for anybody
-    val data = LongArray(1024 * 1024)
+    val data = LongArray(1024)
 
     val tree = MemoryBlock(data.indices)
 
@@ -94,6 +94,7 @@ object UwUMem {
         var available: Boolean = true
         val size get() = area.last + 1 - area.first
         var type: UwUType = UwUPrimitive.UwuVoid
+        var allocationTime = 0L
 
         fun findAllocated(): List<MemoryBlock> {
             return if (left == null && right == null) {
@@ -110,18 +111,52 @@ object UwUMem {
             right = null
             available = true
             type = UwUPrimitive.UwuVoid
+            allocationTime = 0
+            refs = 0
+        }
+
+        fun findFreeable(): List<MemoryBlock> {
+            return if (left == null && right == null && available) {
+                listOf(this)
+            } else if (!available) {
+                if (refs == 0) listOf(this) else emptyList()
+            } else {
+                val l = left?.findFreeable() ?: emptyList()
+                val r = right?.findFreeable() ?: emptyList()
+                l + r
+            }
         }
 
         fun freeEmpty(): Boolean {
             return if (left == null && right == null && available) {
                 true
             } else if (!available) {
-                refs == 0
+                refs == 0 && (System.nanoTime() - allocationTime) > 1000_000L
             } else {
                 val l = left?.freeEmpty() != false
                 val r = right?.freeEmpty() != false
                 if (l) left = null
                 if (r) right = null
+                l && r
+            }
+        }
+
+        fun freeEmpty2(): Boolean {
+            return if (left == null && right == null && available) {
+                true
+            } else if (!available) {
+                false
+            } else {
+                val l = left?.freeEmpty2() != false
+                val r = right?.freeEmpty2() != false
+                if (l) {
+                    left?.free()
+                    left = null
+                }
+                if (r) {
+                    right?.free()
+                    right = null
+                }
                 l && r
             }
         }
@@ -144,12 +179,20 @@ object UwUMem {
             return "$type at $area with $refs refs"
         }
 
+        fun incRefs() {
+//            if (inSafetyZone) {
+//                inSafetyZone = false
+//                return
+//            }
+            refs++
+        }
+
         fun findFree(sizeWords: Int, type: UwUType): MemoryBlock? {
             val bucketSize = (sizeWords shl 1).takeHighestOneBit()  // TODO: make this smorter
             val midpoint = (area.first + area.last + 1) / 2
             return when {
                 !available -> null
-                size == bucketSize && left == null && right == null -> this.apply { available = false; this.type = type }
+                size == bucketSize && left == null && right == null -> this.apply { allocationTime = System.nanoTime(); available = false; this.type = type; refs = 0 }
                 size < bucketSize -> null
                 size > bucketSize -> {
                     if (left == null) MemoryBlock(area.first until midpoint).also { left = it }
@@ -163,14 +206,32 @@ object UwUMem {
         }
     }
 
+    private fun gcRound() {
+        val freeable = tree.findAllocated().filter { it.refs == 0 }.sortedBy { it.allocationTime }.run { take(size / 2) }
+        for (item in freeable) {
+            item.type.free(UwUObject.UwURef(item, item.type))
+//            item.free()
+        }
+        tree.freeEmpty2()
+    }
+
     fun gc() {
-        tree.findAllocated().forEach { if (it.refs == 0) {
-            it.type.free(UwUObject.UwURef(it, it.type))
-        } }
+//        gcRound()
+//        gcRound()
+        for (item in tree.findFreeable()) {
+            if (item.refs != 0) continue
+            item.type.free(UwUObject.UwURef(item, item.type))
+        }
+        tree.freeEmpty()
+    }
+
+    fun gcAll() {
+//        tree.freeEmpty()
+        gc()
     }
 
     fun malloc(sizeWords: Int, type: UwUType): MemoryBlock {
-        return tree.findFree(sizeWords, type) ?: gc().run { tree.findFree(sizeWords, type)!! }
+        return tree.findFree(sizeWords, type) ?: run { println("Out of heap space, running GC"); gc() }.run { tree.findFree(sizeWords, type)!! }
     }
 
     fun lowestAllocated(start: Long): MemoryBlock? {
@@ -256,7 +317,7 @@ open class UwUStruct(
     }
 
     fun setField(obj: UwUObject.UwURef, field: UwuField, value: UwUObject) {
-        if (value is UwUObject.UwURef) value.address.refs++
+        if (value is UwUObject.UwURef) value.address.incRefs()
         val old = field(obj, field)
         if (old is UwUObject.UwURef) old.address.refs--
         field.type.putObj(UwUMem.data, obj.address.area.first + field.offset, value)
@@ -285,7 +346,7 @@ class UwUArray private constructor(val type: UwUType) : UwUType(UwUName("uwu", "
             val old = type.getObj(UwUMem.data, addr.toInt())
             if (old is UwUObject.UwURef) old.address.refs--
             type.putObj(UwUMem.data, addr.toInt(), toPut)
-            if (toPut is UwUObject.UwURef) toPut.address.refs++
+            if (toPut is UwUObject.UwURef) toPut.address.incRefs()
             nil
         },
         UwUMethod.NativeMethod("getSize", emptyList(), UwUPrimitive.UwULong) { a, b ->

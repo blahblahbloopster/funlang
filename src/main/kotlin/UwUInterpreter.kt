@@ -15,8 +15,7 @@ class UwUInterpreter {
         }
     }
 
-    fun evaluateExpression(expr: UwUParser.ExpressionNode, scope: ExecutionScope): UwUObject {
-//        println("evaluating ${expr.str()}")
+    fun evaluateExpression(expr: UwUParser.ExpressionNode, scope: ExecutionScope, level: Int = 0): UwUObject {
         return when (expr) {
             is UwUParser.ExpressionNode.ConstantNode -> when (expr.type) {
                 UwUString -> {
@@ -29,17 +28,15 @@ class UwUInterpreter {
                     val array = UwUString.field(obj, UwUString.fields.find { it.name == "chars" }!!) as UwUObject.UwURef
                     UwUArray[UwUPrimitive.UwUChar].setItems(array, chars)
 
-//                    println("items: ${UwUArray[UwUPrimitive.UwUChar].items(array).map { (it as UwUObject.UwUStatic).value }}")
-
                     obj
                 }
                 UwUPrimitive.UwULong -> UwUPrimitive.UwULong.constructor.invoke(emptyList()).apply { (this as UwUObject.UwUStatic).value = expr.value as Long }
                 UwUPrimitive.UwUDouble -> UwUPrimitive.UwUDouble.constructor.invoke(emptyList()).apply { (this as UwUObject.UwUStatic).value = (expr.value as Double).long() }
                 else -> TODO()
             }
-            is UwUParser.ExpressionNode.FieldGetNode -> evaluateExpression(expr.obj, scope).run { (type as UwUStruct).field(this as UwUObject.UwURef, expr.field) }
-            is UwUParser.ExpressionNode.MethodInvokeNode -> expr.method.invoke(evaluateExpression(expr.obj, scope), expr.args.map { evaluateExpression(it, scope) })
-            is UwUParser.ExpressionNode.StaticMethodInvokeNode -> expr.method.invoke(nil, expr.args.map { evaluateExpression(it, scope) })
+            is UwUParser.ExpressionNode.FieldGetNode -> evaluateExpression(expr.obj, scope, level + 1).run { (type as UwUStruct).field(this as UwUObject.UwURef, expr.field) }
+            is UwUParser.ExpressionNode.MethodInvokeNode -> expr.method.invoke(evaluateExpression(expr.obj, scope), expr.args.map { evaluateExpression(it, scope, level + 1) })
+            is UwUParser.ExpressionNode.StaticMethodInvokeNode -> expr.method.invoke(nil, expr.args.map { evaluateExpression(it, scope, level + 1) })
             is UwUParser.ExpressionNode.VariableNode -> scope.variables.find { it.name == expr.variable.name }!!.value
         }
     }
