@@ -10,6 +10,12 @@ import org.antlr.v4.runtime.tree.ParseTreeVisitor;
  */
 public interface UwULangVisitor<T> extends ParseTreeVisitor<T> {
 	/**
+	 * Visit a parse tree produced by {@link UwULangParser#nameTypePair}.
+	 * @param ctx the parse tree
+	 * @return the visitor result
+	 */
+	T visitNameTypePair(UwULangParser.NameTypePairContext ctx);
+	/**
 	 * Visit a parse tree produced by {@link UwULangParser#struct}.
 	 * @param ctx the parse tree
 	 * @return the visitor result

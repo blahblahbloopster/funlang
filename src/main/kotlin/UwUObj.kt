@@ -281,7 +281,7 @@ open class UwUStruct(
     name: UwUName,
     val fields: MutableList<UwuField>,
     override val methods: MutableList<UwUMethod>,
-    override val constructor: UwUConstructor
+    override var constructor: UwUConstructor
 ) : UwUType(name) {
     override val isStatic: Boolean = false
     val sizeWords get() = (fields.maxOfOrNull { it.offset } ?: -1) + 1

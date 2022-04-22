@@ -7,6 +7,16 @@ import org.antlr.v4.runtime.tree.ParseTreeListener;
  */
 public interface UwULangListener extends ParseTreeListener {
 	/**
+	 * Enter a parse tree produced by {@link UwULangParser#nameTypePair}.
+	 * @param ctx the parse tree
+	 */
+	void enterNameTypePair(UwULangParser.NameTypePairContext ctx);
+	/**
+	 * Exit a parse tree produced by {@link UwULangParser#nameTypePair}.
+	 * @param ctx the parse tree
+	 */
+	void exitNameTypePair(UwULangParser.NameTypePairContext ctx);
+	/**
 	 * Enter a parse tree produced by {@link UwULangParser#struct}.
 	 * @param ctx the parse tree
 	 */

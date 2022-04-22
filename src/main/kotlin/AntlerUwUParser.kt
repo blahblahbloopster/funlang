@@ -1,3 +1,5 @@
+import UwULangParser.FunContext
+import UwULangParser.StructContext
 import UwUMem.nil
 import UwUPrimitive.UwUDouble.long
 import org.antlr.v4.runtime.CodePointBuffer
@@ -8,16 +10,60 @@ import stdlib.UwUString
 import java.nio.CharBuffer
 
 class AntlerUwUParser {
-//    class Listener : UwULangListener {}
 
-    /*
-    To parse a file:
-     1. walk through with visitor that finds all structs and the method bodies they contain
-       a. instantiate struct types, add UwULangMethod instances for each method with the node
-     2. evaluate desired function
-    */
+    class UwULangStructFinder : UwULangBaseVisitor<Unit>() {
+        val imports = mutableListOf<UwUParser.UwUImport>()
+        val foundStructs = mutableListOf<StructContext>()
+        val foundMethods = mutableListOf<FunContext>()
 
-//    class
+        override fun visitImpt(ctx: UwULangParser.ImptContext) {  // TODO: function name imports
+            val qualifiedName = UwUName(*ctx.IDENTIFIER().map { it.text }.toTypedArray())
+            imports.add(UwUParser.UwUImport(qualifiedName))
+        }
+
+        override fun visitStruct(ctx: StructContext) {
+            foundStructs.add(ctx)
+            super.visitStruct(ctx)
+        }
+
+        override fun visitFun(ctx: FunContext) {
+            foundMethods.add(ctx)
+        }
+    }
+
+    fun parseFile(inp: String) {
+        // Parsing is done in a multistep process to avoid issues when types reference each other.
+        // First, an initial sweep for structs is done.  It finds all of the imports, structs, struct fields, and
+        // methods in the file.  The imports are parsed first, within the struct finder object.  Then, the structs
+        // are instantiated with no fields, methods, or constructors.  The fields from the initial parsing are iterated
+        // over, the types resolved, and then they are added to the struct instances.  The same is then done for the
+        // methods.  Due to the way that the method implementation works, it is not necessary to load these first by
+        // name and then by content.
+        val structFinder = UwULangStructFinder()
+
+        val lexed = UwULangLexer(CodePointCharStream.fromBuffer(
+            CodePointBuffer.withChars(CharBuffer.wrap(inp.toCharArray()))
+        ))
+
+        val parsed = UwULangParser(CommonTokenStream(lexed))
+
+        parsed.file().accept(structFinder)
+
+        val structsWithInstances = structFinder.foundStructs.map { struct ->
+            val name = UwUName(struct.IDENTIFIER().text)  // TODO: namespaces
+
+            struct to UwUStruct(name, mutableListOf(), mutableListOf(), UwUConstructor.NullConstructor(UwUPrimitive.UwuVoid))
+        }
+
+        for ((struct, instance) in structsWithInstances) {
+            val fieldsString = struct.nameTypePair().map { Pair(it.IDENTIFIER(0).text, it.IDENTIFIER(1).text) }
+            val fields = fieldsString.mapIndexed { i, it ->
+                val type = structFinder.imports.find { im -> im.name.simpleName == it.second }?.run { UwUType.registry[name] } ?: structsWithInstances.find { s -> s.second.name.simpleName == it.second }?.second
+                UwuField(it.first, type!!, i * 8)
+            }
+            instance.fields.addAll(fields)
+        }
+    }
 
     class UwULangMethod(override val name: String, override val static: Boolean,
                         override val arguments: List<Pair<String, UwUType>>,
@@ -149,7 +195,9 @@ class AntlerUwUParser {
             return when {
                 asAddition != null -> TODO()
                 asMultiplication != null -> TODO()
-                asVariable != null -> eScope.variables.find { it.name == ctx.IDENTIFIER().text }!!.value
+                asVariable != null -> {
+                    eScope.variables.find { it.name == ctx.IDENTIFIER().text }?.value ?: imports.find { it.name.simpleName == ctx.IDENTIFIER().text }!!.run { UwUConstructor.NullConstructor(UwUType.registry[this.name]!!).invoke(emptyList()) }
+                }
                 asFieldAccess != null -> {
                     visitExpression(ctx.expression(0)!!)!!
                         .run { (type as UwUStruct).field(this as UwUObject.UwURef, (type as UwUStruct).fields.find { it.name == asFieldAccess.text }!!) }
@@ -178,7 +226,7 @@ class AntlerUwUParser {
                     obj
                 }
                 asNew != null -> {
-//                    val type = UwUType.registry[asNew.IDENTIFIER().text]  // TODO: imports that actually work
+//                    val type = UwUType.registry[asNew.IDENTIFIER().text]
                     TODO()
                 }
                 else -> nil
@@ -199,35 +247,50 @@ fun main() {
 //    }
 //}""".trimIndent()
 
-    val inp = """
-        wet nuwm = 0;
-        whiwe (nuwm.wessthan(10)) {
-            pwintwn("Hewwo, wowwd!");
-            nuwm = nuwm.pwus(1);
-        }
-        """.trimIndent()
-
-    val lexed = UwULangLexer(CodePointCharStream.fromBuffer(
-        CodePointBuffer.withChars(CharBuffer.wrap(inp.toCharArray()))
-    ))
-
-    val parsed = UwULangParser(CommonTokenStream(lexed))
-//    val file = parsed.file()
-
-//    val listener = object : UwULangBaseListener() {
-//        override fun enterEveryRule(ctx: ParserRuleContext?) {
-//            println(ctx?.javaClass)
+//    val inp = """
+//        wet nuwm = 0;
+//        whiwe (nuwm.wessthan(10)) {
+//            System.pwintwn("Hewwo, wowwd!");
+//            nuwm = nuwm.pwus(1);
 //        }
+//        """.trimIndent()
+//
+//    val lexed = UwULangLexer(CodePointCharStream.fromBuffer(
+//        CodePointBuffer.withChars(CharBuffer.wrap(inp.toCharArray()))
+//    ))
+//
+//    val parsed = UwULangParser(CommonTokenStream(lexed))
+////    val file = parsed.file()
+//
+////    val listener = object : UwULangBaseListener() {
+////        override fun enterEveryRule(ctx: ParserRuleContext?) {
+////            println(ctx?.javaClass)
+////        }
+////    }
+//
+////    ParseTreeWalker.DEFAULT.walk(object : UwULangBaseListener() {}, file)
+////    println(file.accept(AntlerUwUParser.ExpressionVisitor()))
+//    val scope = UwUInterpreter.ExecutionScope(null, mutableListOf(), mutableSetOf())
+//    val imports = listOf(UwUParser.UwUImport(stdlib.System.name))
+////    AntlerUwUParser.ExpressionVisitor(imports, scope).visit(expr)
+//    val interp = AntlerUwUParser.StatementEvaluator(imports, scope)
+//
+//    for (item in parsed.multiStatement().statement()) {
+//        interp.exec(item)
 //    }
 
-//    ParseTreeWalker.DEFAULT.walk(object : UwULangBaseListener() {}, file)
-//    println(file.accept(AntlerUwUParser.ExpressionVisitor()))
-    val scope = UwUInterpreter.ExecutionScope(null, mutableListOf(), mutableSetOf())
-    val imports = listOf(UwUParser.UwUImport(stdlib.System.name, "pwintwn"))
-//    AntlerUwUParser.ExpressionVisitor(imports, scope).visit(expr)
-    val interp = AntlerUwUParser.StatementEvaluator(imports, scope)
+    val inp = """
+        impowt uwu.System;
+        
+        stwuct Foo {
+            asiofew: Wong,
+            jwoiiof: Doubwe;
+        
+            fuwn bwah(): Wong {
+                wetuwn 12;
+            }
+        }
+    """.trimIndent()
 
-    for (item in parsed.multiStatement().statement()) {
-        interp.exec(item)
-    }
+    AntlerUwUParser().parseFile(inp)
 }

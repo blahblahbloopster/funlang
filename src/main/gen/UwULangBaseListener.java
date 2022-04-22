@@ -15,6 +15,18 @@ public class UwULangBaseListener implements UwULangListener {
 	 *
 	 * <p>The default implementation does nothing.</p>
 	 */
+	@Override public void enterNameTypePair(UwULangParser.NameTypePairContext ctx) { }
+	/**
+	 * {@inheritDoc}
+	 *
+	 * <p>The default implementation does nothing.</p>
+	 */
+	@Override public void exitNameTypePair(UwULangParser.NameTypePairContext ctx) { }
+	/**
+	 * {@inheritDoc}
+	 *
+	 * <p>The default implementation does nothing.</p>
+	 */
 	@Override public void enterStruct(UwULangParser.StructContext ctx) { }
 	/**
 	 * {@inheritDoc}
