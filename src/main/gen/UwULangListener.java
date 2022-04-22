@@ -177,6 +177,26 @@ public interface UwULangListener extends ParseTreeListener {
 	 */
 	void exitNew(UwULangParser.NewContext ctx);
 	/**
+	 * Enter a parse tree produced by {@link UwULangParser#qualifiedName}.
+	 * @param ctx the parse tree
+	 */
+	void enterQualifiedName(UwULangParser.QualifiedNameContext ctx);
+	/**
+	 * Exit a parse tree produced by {@link UwULangParser#qualifiedName}.
+	 * @param ctx the parse tree
+	 */
+	void exitQualifiedName(UwULangParser.QualifiedNameContext ctx);
+	/**
+	 * Enter a parse tree produced by {@link UwULangParser#packageStatement}.
+	 * @param ctx the parse tree
+	 */
+	void enterPackageStatement(UwULangParser.PackageStatementContext ctx);
+	/**
+	 * Exit a parse tree produced by {@link UwULangParser#packageStatement}.
+	 * @param ctx the parse tree
+	 */
+	void exitPackageStatement(UwULangParser.PackageStatementContext ctx);
+	/**
 	 * Enter a parse tree produced by {@link UwULangParser#file}.
 	 * @param ctx the parse tree
 	 */

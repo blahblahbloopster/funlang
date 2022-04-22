@@ -112,6 +112,18 @@ public interface UwULangVisitor<T> extends ParseTreeVisitor<T> {
 	 */
 	T visitNew(UwULangParser.NewContext ctx);
 	/**
+	 * Visit a parse tree produced by {@link UwULangParser#qualifiedName}.
+	 * @param ctx the parse tree
+	 * @return the visitor result
+	 */
+	T visitQualifiedName(UwULangParser.QualifiedNameContext ctx);
+	/**
+	 * Visit a parse tree produced by {@link UwULangParser#packageStatement}.
+	 * @param ctx the parse tree
+	 * @return the visitor result
+	 */
+	T visitPackageStatement(UwULangParser.PackageStatementContext ctx);
+	/**
 	 * Visit a parse tree produced by {@link UwULangParser#file}.
 	 * @param ctx the parse tree
 	 * @return the visitor result

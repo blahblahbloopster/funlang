@@ -23,10 +23,11 @@ LET: 'wet';
 MUT: 'mewt';
 IMPORT: 'impowt';
 RETURN: 'wetuwn';
+PACKAGE: 'package';
 
 IDENTIFIER: [a-zA-Z_] [a-zA-Z_0-9]*;
 
-KEYWORD : STRUCT | FUN | NEW | IF | WHILE | LET | MUT | IMPORT | RETURN;
+KEYWORD : STRUCT | FUN | NEW | IF | WHILE | LET | MUT | IMPORT | RETURN | PACKAGE;
 
 nameTypePair: name=IDENTIFIER COLON type=IDENTIFIER;
 
@@ -95,7 +96,16 @@ new:
     NEW IDENTIFIER OPEN_PAREN expression* CLOSE_PAREN
 ;
 
+qualifiedName:
+    (IDENTIFIER '.')* IDENTIFIER
+;
+
+packageStatement:
+    PACKAGE qualifiedName SEMICOLON
+;
+
 file:
+    packageStatement
     impt+
     struct*
 ;

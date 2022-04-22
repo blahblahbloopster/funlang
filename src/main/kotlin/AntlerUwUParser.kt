@@ -12,10 +12,15 @@ import java.nio.CharBuffer
 
 class AntlerUwUParser {
 
-    class UwULangStructFinder : UwULangBaseVisitor<Unit>() {
+    private class UwULangStructFinder : UwULangBaseVisitor<Unit>() {
         val imports = mutableListOf<UwUImport>()
         val foundStructs = mutableListOf<StructContext>()
         val foundMethods = mutableListOf<FunContext>()
+        lateinit var pkg: Array<String>
+
+        override fun visitPackageStatement(ctx: UwULangParser.PackageStatementContext) {
+            pkg = ctx.qualifiedName().IDENTIFIER().map { it.text }.toTypedArray()
+        }
 
         override fun visitImpt(ctx: UwULangParser.ImptContext) {  // TODO: function name imports
             val qualifiedName = UwUName(*ctx.IDENTIFIER().map { it.text }.toTypedArray())
@@ -32,7 +37,7 @@ class AntlerUwUParser {
         }
     }
 
-    data class UwUFile(val imports: List<UwUImport>, val structs: List<UwUStruct>)
+    data class UwUFile(val pkg: UwUName, val imports: List<UwUImport>, val structs: List<UwUStruct>)
 
     fun parseFile(inp: String): UwUFile {
         // Parsing is done in a multistep process to avoid issues when types reference each other.
@@ -42,6 +47,10 @@ class AntlerUwUParser {
         // over, the types resolved, and then they are added to the struct instances.  The same is then done for the
         // methods.  Due to the way that the method implementation works, it is not necessary to load these first by
         // name and then by content.
+        if (inp.contains('R') || inp.contains('r') || inp.contains('L') || inp.contains('l')) {
+            throw CompilerError("Pwogwam must not contain the wettew between k and n oww q and s!")
+        }
+
         val structFinder = UwULangStructFinder()
 
         val lexed = UwULangLexer(CodePointCharStream.fromBuffer(
@@ -53,7 +62,7 @@ class AntlerUwUParser {
         parsed.file().accept(structFinder)
 
         val structsWithInstances = structFinder.foundStructs.map { struct ->
-            val name = UwUName(struct.IDENTIFIER().text)  // TODO: namespaces
+            val name = UwUName(*structFinder.pkg + struct.IDENTIFIER().text)
 
             struct to UwUStruct(name, mutableListOf(), mutableListOf(), UwUConstructor.NullConstructor(UwUPrimitive.UwuVoid))
         }
@@ -82,7 +91,9 @@ class AntlerUwUParser {
             }
         }
 
-        return UwUFile(structFinder.imports, structsWithInstances.map { it.second })
+        return UwUFile(
+            UwUName(*structFinder.pkg), structFinder.imports,
+            structsWithInstances.map { it.second })
     }
 
     data class UwULangMethod(override val name: String, override val static: Boolean,
@@ -91,7 +102,7 @@ class AntlerUwUParser {
                         private val imports: List<UwUImport>) : UwUMethod {
 
         override fun invoke(obj: UwUObject, args: List<UwUObject>): UwUObject {
-            val scope = UwUInterpreter.ExecutionScope(null, mutableListOf(), mutableSetOf())
+            val scope = UwUInterpreter.ExecutionScope(null, arguments.mapIndexed { index, pair -> UwUInterpreter.UwUVar(pair.first, args[index]) }.toMutableList(), mutableSetOf())
 
             val executor = StatementEvaluator(imports, scope, obj)
 
@@ -113,6 +124,12 @@ class AntlerUwUParser {
                 return e.obj
             }
             return nil
+        }
+
+        override fun visitFun(ctx: FunContext) {
+            for (statement in ctx.multiStatement().statement()) {
+                visitStatement(statement)
+            }
         }
 
         override fun visitIfStatement(ctx: UwULangParser.IfStatementContext) {
@@ -172,14 +189,14 @@ class AntlerUwUParser {
             val asFieldAssign = ctx.fieldAssign()
 
             when {
-                asIf != null -> visitIfStatement(asIf)
-                asWhile != null -> visitWhileLoop(asWhile)
-                asVar != null -> visitVariableAssign(asVar)
-                asExpr != null -> ExpressionVisitor(imports, scope, obj).visitExpression(asExpr)
                 asReturn != null -> {
                     val res = ExpressionVisitor(imports, scope, obj).visitExpression(ctx.expression())
                     throw ReturnException(res!!)
                 }
+                asIf != null -> visitIfStatement(asIf)
+                asWhile != null -> visitWhileLoop(asWhile)
+                asVar != null -> visitVariableAssign(asVar)
+                asExpr != null -> ExpressionVisitor(imports, scope, obj).visitExpression(asExpr)
                 asFieldAssign != null -> visitFieldAssign(asFieldAssign)
             }
         }
@@ -289,6 +306,8 @@ fun main() {
     stdlib.System
 
     val inp = """
+        package com.github.bwahbwahbwoopstew.test;
+        
         impowt uwu.System;
         impowt uwu.Wong;
         impowt uwu.Doubwe;
@@ -296,33 +315,43 @@ fun main() {
         stwuct Pos {
             x: Wong,
             y: Wong;
+            
+            fuwn moveWight(d: Wong) {
+                this.x = this.x + d;
+            }
+            
+            fuwn pwint() {
+                System.pwintwn(this.x);
+                System.pwintwn(this.y);
+            }
         }
         
         stwuct Foo {
-            static fuwn baw() {
+            static fuwn baw(): Wong {
                 wet position = new Pos();
-                System.gc();
-                System.pwintwn(position.x);
-                position.x = position.x + 10;
-                System.pwintwn(position.x);
+                position.moveWight(12);
+                position.pwint();
+                wetuwn 5;
             }
         
             static fuwn bwah() {
                 mewt nuwm = 0;
                 whiwe (nuwm.wessthan(10)) {
                     System.pwintwn("Hewwo, wowwd!");
-                    this.baw();
+                    wet wes = this.baw();
+                    System.pwintwn(wes);
                     nuwm = nuwm + 1;
                 }
-                System.gc();
             }
         }
     """.trimIndent()
 
     AntlerUwUParser().parseFile(inp)
 
-    val resolvedType = UwUType.registry[UwUName("Foo")] as UwUStruct
+    val resolvedType = UwUType.registry[UwUName("com", "github", "bwahbwahbwoopstew", "test", "Foo")] as UwUStruct
     val method = resolvedType.methods.find { it.name == "bwah" }!!
     val instance = resolvedType.constructor.invoke(emptyList())
     method.invoke(instance, emptyList())
+    UwUMem.gc()
+    require(UwUMem.rootObjects.isEmpty())
 }
