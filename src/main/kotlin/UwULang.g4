@@ -22,10 +22,11 @@ WHILE: 'whiwe';
 LET: 'wet';
 MUT: 'mewt';
 IMPORT: 'impowt';
+RETURN: 'wetuwn';
 
 IDENTIFIER: [a-zA-Z_] [a-zA-Z_0-9]*;
 
-KEYWORD : STRUCT | FUN | NEW | IF | WHILE | LET | MUT | IMPORT;
+KEYWORD : STRUCT | FUN | NEW | IF | WHILE | LET | MUT | IMPORT | RETURN;
 
 struct : STRUCT IDENTIFIER OPEN_BRACE (IDENTIFIER COLON IDENTIFIER ',')* (IDENTIFIER COLON IDENTIFIER SEMICOLON)? fun* CLOSE_BRACE;
 
@@ -47,10 +48,11 @@ expression :
     FLOAT |
     STRING_LITERAL |
     expression mulOp expression |
-    expression addOp expression
+    expression addOp expression |
+    new
 ;
 
-statement: ifStatement | whileLoop | (variableAssign SEMICOLON) | (expression SEMICOLON);
+statement: ifStatement | whileLoop | (variableAssign SEMICOLON) | (expression SEMICOLON) | (RETURN expression SEMICOLON);
 
 ifStatement:
     IF OPEN_PAREN expression CLOSE_PAREN OPEN_BRACE statement* CLOSE_BRACE
@@ -61,17 +63,25 @@ whileLoop:
 ;
 
 variableAssign:
-    (LET | MUT) IDENTIFIER '=' expression
+    (LET | MUT)? IDENTIFIER '=' expression
+;
+
+multiStatement:
+    statement*
 ;
 
 fun:
     STATIC? FUN IDENTIFIER OPEN_PAREN (IDENTIFIER COLON IDENTIFIER ',')* (IDENTIFIER COLON IDENTIFIER)? CLOSE_PAREN OPEN_BRACE
-    statement*
+    multiStatement
     CLOSE_BRACE
 ;
 
 impt:
     IMPORT (IDENTIFIER '.')* IDENTIFIER SEMICOLON
+;
+
+new:
+    NEW IDENTIFIER
 ;
 
 file:

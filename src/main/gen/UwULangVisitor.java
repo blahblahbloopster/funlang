@@ -1,4 +1,4 @@
-// Generated from /home/foo/synced/uwu-lang/src/main/kotlin/UwULang.g4 by ANTLR 4.10.1
+// Generated from /home/max/synced/uwu-lang/src/main/kotlin/UwULang.g4 by ANTLR 4.10.1
 import org.antlr.v4.runtime.tree.ParseTreeVisitor;
 
 /**
@@ -76,6 +76,12 @@ public interface UwULangVisitor<T> extends ParseTreeVisitor<T> {
 	 */
 	T visitVariableAssign(UwULangParser.VariableAssignContext ctx);
 	/**
+	 * Visit a parse tree produced by {@link UwULangParser#multiStatement}.
+	 * @param ctx the parse tree
+	 * @return the visitor result
+	 */
+	T visitMultiStatement(UwULangParser.MultiStatementContext ctx);
+	/**
 	 * Visit a parse tree produced by {@link UwULangParser#fun}.
 	 * @param ctx the parse tree
 	 * @return the visitor result
@@ -87,6 +93,12 @@ public interface UwULangVisitor<T> extends ParseTreeVisitor<T> {
 	 * @return the visitor result
 	 */
 	T visitImpt(UwULangParser.ImptContext ctx);
+	/**
+	 * Visit a parse tree produced by {@link UwULangParser#new}.
+	 * @param ctx the parse tree
+	 * @return the visitor result
+	 */
+	T visitNew(UwULangParser.NewContext ctx);
 	/**
 	 * Visit a parse tree produced by {@link UwULangParser#file}.
 	 * @param ctx the parse tree

@@ -1,4 +1,4 @@
-// Generated from /home/foo/synced/uwu-lang/src/main/kotlin/UwULang.g4 by ANTLR 4.10.1
+// Generated from /home/max/synced/uwu-lang/src/main/kotlin/UwULang.g4 by ANTLR 4.10.1
 import org.antlr.v4.runtime.tree.AbstractParseTreeVisitor;
 
 /**
@@ -93,6 +93,13 @@ public class UwULangBaseVisitor<T> extends AbstractParseTreeVisitor<T> implement
 	 * <p>The default implementation returns the result of calling
 	 * {@link #visitChildren} on {@code ctx}.</p>
 	 */
+	@Override public T visitMultiStatement(UwULangParser.MultiStatementContext ctx) { return visitChildren(ctx); }
+	/**
+	 * {@inheritDoc}
+	 *
+	 * <p>The default implementation returns the result of calling
+	 * {@link #visitChildren} on {@code ctx}.</p>
+	 */
 	@Override public T visitFun(UwULangParser.FunContext ctx) { return visitChildren(ctx); }
 	/**
 	 * {@inheritDoc}
@@ -101,6 +108,13 @@ public class UwULangBaseVisitor<T> extends AbstractParseTreeVisitor<T> implement
 	 * {@link #visitChildren} on {@code ctx}.</p>
 	 */
 	@Override public T visitImpt(UwULangParser.ImptContext ctx) { return visitChildren(ctx); }
+	/**
+	 * {@inheritDoc}
+	 *
+	 * <p>The default implementation returns the result of calling
+	 * {@link #visitChildren} on {@code ctx}.</p>
+	 */
+	@Override public T visitNew(UwULangParser.NewContext ctx) { return visitChildren(ctx); }
 	/**
 	 * {@inheritDoc}
 	 *

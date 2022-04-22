@@ -7,13 +7,13 @@ wif a mawk awnd sweep gawbage cowwectow
 and stwucts.  The wefewence intewpwetew 
 is wittem in kotwin.
 
-#### Wesewved keywowds:
+#### Wesewved keywowds (* - not yet impwemented):
 - fuwn
 - wetuwn
-- bweak
-- continuwue
+- bweak *
+- continuwue *
 - if
-- ewse
+- ewse *
 - wet
 - mewt
 - stawtic
@@ -23,20 +23,14 @@ is wittem in kotwin.
 - Int
 - Stwing
 - Doubwe
-- Chaw (unfinished)
+- Chaw
 - Awway
 
 #### Future ideas:
-- Infix notation parsing (for now .plus(), .minus(), etc)
 - Bracket access
 - Private access
 - Namespaces
-
-#### Expression parse precedence:
-1. Parenthesis
-2. Field gets
-3. Method invocations
-
+- 
 ```
 stawtic fuwn main(awgs: Awway<Stwing>) {
     pwintwn(awgs.get(0));

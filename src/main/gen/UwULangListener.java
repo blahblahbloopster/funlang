@@ -1,4 +1,4 @@
-// Generated from /home/foo/synced/uwu-lang/src/main/kotlin/UwULang.g4 by ANTLR 4.10.1
+// Generated from /home/max/synced/uwu-lang/src/main/kotlin/UwULang.g4 by ANTLR 4.10.1
 import org.antlr.v4.runtime.tree.ParseTreeListener;
 
 /**
@@ -117,6 +117,16 @@ public interface UwULangListener extends ParseTreeListener {
 	 */
 	void exitVariableAssign(UwULangParser.VariableAssignContext ctx);
 	/**
+	 * Enter a parse tree produced by {@link UwULangParser#multiStatement}.
+	 * @param ctx the parse tree
+	 */
+	void enterMultiStatement(UwULangParser.MultiStatementContext ctx);
+	/**
+	 * Exit a parse tree produced by {@link UwULangParser#multiStatement}.
+	 * @param ctx the parse tree
+	 */
+	void exitMultiStatement(UwULangParser.MultiStatementContext ctx);
+	/**
 	 * Enter a parse tree produced by {@link UwULangParser#fun}.
 	 * @param ctx the parse tree
 	 */
@@ -136,6 +146,16 @@ public interface UwULangListener extends ParseTreeListener {
 	 * @param ctx the parse tree
 	 */
 	void exitImpt(UwULangParser.ImptContext ctx);
+	/**
+	 * Enter a parse tree produced by {@link UwULangParser#new}.
+	 * @param ctx the parse tree
+	 */
+	void enterNew(UwULangParser.NewContext ctx);
+	/**
+	 * Exit a parse tree produced by {@link UwULangParser#new}.
+	 * @param ctx the parse tree
+	 */
+	void exitNew(UwULangParser.NewContext ctx);
 	/**
 	 * Enter a parse tree produced by {@link UwULangParser#file}.
 	 * @param ctx the parse tree

@@ -1,4 +1,4 @@
-// Generated from /home/foo/synced/uwu-lang/src/main/kotlin/UwULang.g4 by ANTLR 4.10.1
+// Generated from /home/max/synced/uwu-lang/src/main/kotlin/UwULang.g4 by ANTLR 4.10.1
 
 import org.antlr.v4.runtime.ParserRuleContext;
 import org.antlr.v4.runtime.tree.ErrorNode;
@@ -147,6 +147,18 @@ public class UwULangBaseListener implements UwULangListener {
 	 *
 	 * <p>The default implementation does nothing.</p>
 	 */
+	@Override public void enterMultiStatement(UwULangParser.MultiStatementContext ctx) { }
+	/**
+	 * {@inheritDoc}
+	 *
+	 * <p>The default implementation does nothing.</p>
+	 */
+	@Override public void exitMultiStatement(UwULangParser.MultiStatementContext ctx) { }
+	/**
+	 * {@inheritDoc}
+	 *
+	 * <p>The default implementation does nothing.</p>
+	 */
 	@Override public void enterFun(UwULangParser.FunContext ctx) { }
 	/**
 	 * {@inheritDoc}
@@ -166,6 +178,18 @@ public class UwULangBaseListener implements UwULangListener {
 	 * <p>The default implementation does nothing.</p>
 	 */
 	@Override public void exitImpt(UwULangParser.ImptContext ctx) { }
+	/**
+	 * {@inheritDoc}
+	 *
+	 * <p>The default implementation does nothing.</p>
+	 */
+	@Override public void enterNew(UwULangParser.NewContext ctx) { }
+	/**
+	 * {@inheritDoc}
+	 *
+	 * <p>The default implementation does nothing.</p>
+	 */
+	@Override public void exitNew(UwULangParser.NewContext ctx) { }
 	/**
 	 * {@inheritDoc}
 	 *
