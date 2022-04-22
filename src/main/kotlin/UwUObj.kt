@@ -238,7 +238,7 @@ sealed class UwUPrimitive(name: UwUName) : UwUType(name) {
         override val methods: List<UwUMethod> = emptyList()
         override val constructor: UwUConstructor = UwUConstructor.NativeConstructor(emptyList()) { nil }
     }
-    object UwULong : UwUPrimitive(UwUName("uwu", "Long")) {
+    object UwULong : UwUPrimitive(UwUName("uwu", "Wong")) {
         override val constructor: UwUConstructor = UwUConstructor.NativeConstructor(emptyList()) { UwUObject.UwUStatic(0L, UwULong) }
         override val methods = listOf(
             UwUMethod.NativeMethod("pwus", listOf("b" to UwULong), UwULong) { a, b -> UwUObject.UwUStatic((a as UwUObject.UwUStatic).value + (b[0] as UwUObject.UwUStatic).value, UwULong) },
@@ -249,7 +249,7 @@ sealed class UwUPrimitive(name: UwUName) : UwUType(name) {
             UwUMethod.NativeMethod("wessthan", listOf("b" to UwULong), UwUBoolean) { a, b -> UwUObject.UwUStatic(if ((a as UwUObject.UwUStatic).value < (b[0] as UwUObject.UwUStatic).value) 1L else 0L, UwUBoolean) },
         )
     }
-    object UwUDouble : UwUPrimitive(UwUName("uwu", "Double")) {
+    object UwUDouble : UwUPrimitive(UwUName("uwu", "Doubwe")) {
         override val constructor: UwUConstructor = UwUConstructor.NativeConstructor(emptyList()) { UwUObject.UwUStatic(0L, UwUDouble) }
         private fun Long.double() = java.lang.Double.longBitsToDouble(this)
         fun Double.long() = java.lang.Double.doubleToLongBits(this)
@@ -262,12 +262,12 @@ sealed class UwUPrimitive(name: UwUName) : UwUType(name) {
         )
     }
 
-    object UwUChar : UwUPrimitive(UwUName("uwu", "Char")) {
+    object UwUChar : UwUPrimitive(UwUName("uwu", "Chaw")) {
         override val constructor: UwUConstructor = UwUConstructor.NativeConstructor(emptyList()) { UwUObject.UwUStatic(0L, UwUChar) }
         override val methods: List<UwUMethod> = emptyList()
     }
 
-    object UwUBoolean : UwUPrimitive(UwUName("uwu", "Boolean")) {
+    object UwUBoolean : UwUPrimitive(UwUName("uwu", "Boowean")) {
         override val constructor: UwUConstructor = UwUConstructor.NativeConstructor(emptyList()) { UwUObject.UwUStatic(0L, UwUBoolean) }
         override val methods: List<UwUMethod> = emptyList()
     }
@@ -275,6 +275,19 @@ sealed class UwUPrimitive(name: UwUName) : UwUType(name) {
 
 class UwUName(vararg val names: String) {
     val simpleName = names.last()
+
+    override fun toString(): String {
+        return names.joinToString(".")
+    }
+
+    override fun equals(other: Any?): Boolean {
+        if (other !is UwUName) return false
+        return other.names.contentEquals(names)
+    }
+
+    override fun hashCode(): Int {
+        return names.contentHashCode()
+    }
 }
 
 open class UwUStruct(

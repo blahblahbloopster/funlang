@@ -31,7 +31,9 @@ class AntlerUwUParser {
         }
     }
 
-    fun parseFile(inp: String) {
+    data class UwUFile(val imports: List<UwUParser.UwUImport>, val structs: List<UwUStruct>)
+
+    fun parseFile(inp: String): UwUFile {
         // Parsing is done in a multistep process to avoid issues when types reference each other.
         // First, an initial sweep for structs is done.  It finds all of the imports, structs, struct fields, and
         // methods in the file.  The imports are parsed first, within the struct finder object.  Then, the structs
@@ -56,16 +58,32 @@ class AntlerUwUParser {
         }
 
         for ((struct, instance) in structsWithInstances) {
-            val fieldsString = struct.nameTypePair().map { Pair(it.IDENTIFIER(0).text, it.IDENTIFIER(1).text) }
+            val fieldsString = struct.nameTypePair().map { Pair(it.name.text, it.type.text) }
             val fields = fieldsString.mapIndexed { i, it ->
-                val type = structFinder.imports.find { im -> im.name.simpleName == it.second }?.run { UwUType.registry[name] } ?: structsWithInstances.find { s -> s.second.name.simpleName == it.second }?.second
+                val type = structFinder.imports.find { im -> im.name.simpleName == it.second }?.run { UwUType.registry[this.name] } ?: structsWithInstances.find { s -> s.second.name.simpleName == it.second }?.second
                 UwuField(it.first, type!!, i * 8)
             }
             instance.fields.addAll(fields)
+
+            val methods = struct.`fun`()
+            for (method in methods) {
+                val name = method.name.text
+                val args = method.nameTypePair().map {
+                    val type = structFinder.imports.find { im -> im.name.simpleName == it.type.text }?.run { UwUType.registry[this.name] } ?: structsWithInstances.find { s -> s.second.name.simpleName == it.type.text }?.second
+                    it.name.text to type!!
+                }
+
+                val returnType = method.returnType?.run { structFinder.imports.find { im -> im.name.simpleName == this.text }?.run { UwUType.registry[this.name] } ?: structsWithInstances.find { s -> s.second.name.simpleName == this.text }?.second }
+                    ?: UwUPrimitive.UwuVoid
+
+                instance.methods.add(UwULangMethod(name, false, args, returnType, method, structFinder.imports))
+            }
         }
+
+        return UwUFile(structFinder.imports, structsWithInstances.map { it.second })
     }
 
-    class UwULangMethod(override val name: String, override val static: Boolean,
+    data class UwULangMethod(override val name: String, override val static: Boolean,
                         override val arguments: List<Pair<String, UwUType>>,
                         override val returnType: UwUType, private val node: RuleContext,
                         private val imports: List<UwUParser.UwUImport>) : UwUMethod {
@@ -279,18 +297,31 @@ fun main() {
 //        interp.exec(item)
 //    }
 
+    UwUPrimitive.UwULong
+    UwUPrimitive.UwUDouble
+    stdlib.System
+
     val inp = """
         impowt uwu.System;
+        impowt uwu.Wong;
+        impowt uwu.Doubwe;
         
         stwuct Foo {
             asiofew: Wong,
             jwoiiof: Doubwe;
         
-            fuwn bwah(): Wong {
-                wetuwn 12;
+            static fuwn bwah() {
+                mewt nuwm = 0;
+                whiwe (nuwm.wessthan(10)) {
+                    System.pwintwn("Hewwo, wowwd!");
+                    nuwm = nuwm.pwus(1);
+                }
             }
         }
     """.trimIndent()
 
     AntlerUwUParser().parseFile(inp)
+
+    val method = (UwUType.registry[UwUName("Foo")] as UwUStruct).methods.find { it.name == "bwah" }!!
+    method.invoke(nil, emptyList())
 }
