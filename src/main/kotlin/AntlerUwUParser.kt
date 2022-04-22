@@ -1,6 +1,7 @@
 import UwULangParser.FunContext
 import UwULangParser.StructContext
 import UwUMem.nil
+import UwUPrimitive.UwUDouble.double
 import UwUPrimitive.UwUDouble.long
 import org.antlr.v4.runtime.CodePointBuffer
 import org.antlr.v4.runtime.CodePointCharStream
@@ -12,13 +13,13 @@ import java.nio.CharBuffer
 class AntlerUwUParser {
 
     class UwULangStructFinder : UwULangBaseVisitor<Unit>() {
-        val imports = mutableListOf<UwUParser.UwUImport>()
+        val imports = mutableListOf<UwUImport>()
         val foundStructs = mutableListOf<StructContext>()
         val foundMethods = mutableListOf<FunContext>()
 
         override fun visitImpt(ctx: UwULangParser.ImptContext) {  // TODO: function name imports
             val qualifiedName = UwUName(*ctx.IDENTIFIER().map { it.text }.toTypedArray())
-            imports.add(UwUParser.UwUImport(qualifiedName))
+            imports.add(UwUImport(qualifiedName))
         }
 
         override fun visitStruct(ctx: StructContext) {
@@ -31,7 +32,7 @@ class AntlerUwUParser {
         }
     }
 
-    data class UwUFile(val imports: List<UwUParser.UwUImport>, val structs: List<UwUStruct>)
+    data class UwUFile(val imports: List<UwUImport>, val structs: List<UwUStruct>)
 
     fun parseFile(inp: String): UwUFile {
         // Parsing is done in a multistep process to avoid issues when types reference each other.
@@ -76,7 +77,7 @@ class AntlerUwUParser {
                 val returnType = method.returnType?.run { structFinder.imports.find { im -> im.name.simpleName == this.text }?.run { UwUType.registry[this.name] } ?: structsWithInstances.find { s -> s.second.name.simpleName == this.text }?.second }
                     ?: UwUPrimitive.UwuVoid
 
-                instance.methods.add(UwULangMethod(name, false, args, returnType, method, structFinder.imports))
+                instance.methods.add(UwULangMethod(name, false, args, returnType, method, structFinder.imports + structsWithInstances.map { UwUImport(it.second.name) }))
             }
         }
 
@@ -86,7 +87,7 @@ class AntlerUwUParser {
     data class UwULangMethod(override val name: String, override val static: Boolean,
                         override val arguments: List<Pair<String, UwUType>>,
                         override val returnType: UwUType, private val node: RuleContext,
-                        private val imports: List<UwUParser.UwUImport>) : UwUMethod {
+                        private val imports: List<UwUImport>) : UwUMethod {
 
         override fun invoke(obj: UwUObject, args: List<UwUObject>): UwUObject {
             val scope = UwUInterpreter.ExecutionScope(null, mutableListOf(), mutableSetOf())
@@ -101,9 +102,7 @@ class AntlerUwUParser {
         }
     }
 
-    class StatementEvaluator(val imports: List<UwUParser.UwUImport>, var scope: UwUInterpreter.ExecutionScope) : UwULangBaseVisitor<Unit>() {
-        var returnValue: UwUObject = nil
-
+    class StatementEvaluator(val imports: List<UwUImport>, var scope: UwUInterpreter.ExecutionScope) : UwULangBaseVisitor<Unit>() {
         private class ReturnException(val obj: UwUObject) : Exception()
 
         fun exec(node: RuleContext): UwUObject {
@@ -175,7 +174,7 @@ class AntlerUwUParser {
     }
 
     // TODO: keepalive somehow, maybe make subscopes for each expression evaluation?
-    class ExpressionVisitor(val imports: List<UwUParser.UwUImport>, val eScope: UwUInterpreter.ExecutionScope) : UwULangBaseVisitor<UwUObject?>() {
+    class ExpressionVisitor(val imports: List<UwUImport>, val eScope: UwUInterpreter.ExecutionScope) : UwULangBaseVisitor<UwUObject?>() {
         override fun defaultResult(): UwUObject? {
             return null
         }
@@ -187,14 +186,6 @@ class AntlerUwUParser {
             val instance = UwUType.registry[cls]!!
 
             return instance.methods.find { it.name == funName }!!.invoke(nil, args)
-        }
-
-        override fun visitAddOp(ctx: UwULangParser.AddOpContext): UwUObject? {
-            TODO()
-        }
-
-        override fun visitMulOp(ctx: UwULangParser.MulOpContext): UwUObject? {
-            TODO()
         }
 
         override fun visitExpression(ctx: UwULangParser.ExpressionContext): UwUObject? {
@@ -211,8 +202,24 @@ class AntlerUwUParser {
             val asNew = ctx.new_()
 
             return when {
-                asAddition != null -> TODO()
-                asMultiplication != null -> TODO()
+                asAddition != null -> {
+                    val a = visitExpression(ctx.expression(0)) as UwUObject.UwUStatic
+                    val b = visitExpression(ctx.expression(1)) as UwUObject.UwUStatic
+
+                    if (a.type == UwUPrimitive.UwULong)
+                        if (asAddition.PLUS() != null) UwUObject.UwUStatic(a.value + b.value, UwUPrimitive.UwULong) else UwUObject.UwUStatic(a.value - b.value, UwUPrimitive.UwULong)
+                    else
+                        if (asAddition.PLUS() != null) UwUObject.UwUStatic((a.value.double() + b.value.double()).long(), UwUPrimitive.UwUDouble) else UwUObject.UwUStatic((a.value.double() - b.value.double()).long(), UwUPrimitive.UwUDouble)
+                }
+                asMultiplication != null -> {
+                    val a = visitExpression(ctx.expression(0)) as UwUObject.UwUStatic
+                    val b = visitExpression(ctx.expression(1)) as UwUObject.UwUStatic
+
+                    if (a.type == UwUPrimitive.UwULong)
+                        if (asMultiplication.TIMES() != null) UwUObject.UwUStatic(a.value * b.value, UwUPrimitive.UwULong) else UwUObject.UwUStatic(a.value * b.value, UwUPrimitive.UwULong)
+                    else
+                        if (asMultiplication.TIMES() != null) UwUObject.UwUStatic((a.value.double() / b.value.double()).long(), UwUPrimitive.UwUDouble) else UwUObject.UwUStatic((a.value.double() / b.value.double()).long(), UwUPrimitive.UwUDouble)
+                }
                 asVariable != null -> {
                     eScope.variables.find { it.name == ctx.IDENTIFIER().text }?.value ?: imports.find { it.name.simpleName == ctx.IDENTIFIER().text }!!.run { UwUConstructor.NullConstructor(UwUType.registry[this.name]!!).invoke(emptyList()) }
                 }
@@ -251,52 +258,18 @@ class AntlerUwUParser {
             }
         }
     }
+
+    class UwUImport(val name: UwUName, val funName: String? = null) {
+        override fun toString(): String {
+            return name.names.joinToString(".")
+        }
+    }
+
+    class CompilerError(cause: String) : Throwable(cause)
 }
 
 fun main() {
-//    val inp = """impowt uwu.System.pwintwn;
-//
-//stwuct Blah {
-//    foo: Wong,
-//    bar: Doubwe;
-//
-//    fuwn testFun(arg1: Wong) {
-//        pwintwn("iowejfioewoif");
-//    }
-//}""".trimIndent()
-
-//    val inp = """
-//        wet nuwm = 0;
-//        whiwe (nuwm.wessthan(10)) {
-//            System.pwintwn("Hewwo, wowwd!");
-//            nuwm = nuwm.pwus(1);
-//        }
-//        """.trimIndent()
-//
-//    val lexed = UwULangLexer(CodePointCharStream.fromBuffer(
-//        CodePointBuffer.withChars(CharBuffer.wrap(inp.toCharArray()))
-//    ))
-//
-//    val parsed = UwULangParser(CommonTokenStream(lexed))
-////    val file = parsed.file()
-//
-////    val listener = object : UwULangBaseListener() {
-////        override fun enterEveryRule(ctx: ParserRuleContext?) {
-////            println(ctx?.javaClass)
-////        }
-////    }
-//
-////    ParseTreeWalker.DEFAULT.walk(object : UwULangBaseListener() {}, file)
-////    println(file.accept(AntlerUwUParser.ExpressionVisitor()))
-//    val scope = UwUInterpreter.ExecutionScope(null, mutableListOf(), mutableSetOf())
-//    val imports = listOf(UwUParser.UwUImport(stdlib.System.name))
-////    AntlerUwUParser.ExpressionVisitor(imports, scope).visit(expr)
-//    val interp = AntlerUwUParser.StatementEvaluator(imports, scope)
-//
-//    for (item in parsed.multiStatement().statement()) {
-//        interp.exec(item)
-//    }
-
+    // need to instantiate the structs so that they can be used
     UwUPrimitive.UwULong
     UwUPrimitive.UwUDouble
     stdlib.System
@@ -309,12 +282,17 @@ fun main() {
         stwuct Foo {
             asiofew: Wong,
             jwoiiof: Doubwe;
+            
+            static fuwn baw() {
+                System.pwintwn("aaaaaaa");
+            }
         
             static fuwn bwah() {
                 mewt nuwm = 0;
                 whiwe (nuwm.wessthan(10)) {
                     System.pwintwn("Hewwo, wowwd!");
-                    nuwm = nuwm.pwus(1);
+                    Foo.baw();
+                    nuwm = nuwm + 1;
                 }
             }
         }

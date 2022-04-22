@@ -251,7 +251,7 @@ sealed class UwUPrimitive(name: UwUName) : UwUType(name) {
     }
     object UwUDouble : UwUPrimitive(UwUName("uwu", "Doubwe")) {
         override val constructor: UwUConstructor = UwUConstructor.NativeConstructor(emptyList()) { UwUObject.UwUStatic(0L, UwUDouble) }
-        private fun Long.double() = java.lang.Double.longBitsToDouble(this)
+        fun Long.double() = java.lang.Double.longBitsToDouble(this)
         fun Double.long() = java.lang.Double.doubleToLongBits(this)
 
         override val methods = listOf(

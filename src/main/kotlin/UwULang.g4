@@ -37,8 +37,13 @@ fieldAccess : '.' IDENTIFIER;
 functionInvocation: IDENTIFIER OPEN_PAREN (expression ',')* (expression)? CLOSE_PAREN;
 methodInvocation : '.' functionInvocation;
 
-addOp: '+' | '-';
-mulOp: '*' | '/';
+PLUS: '+';
+MINUS: '-';
+TIMES: '*';
+DIVIDE: '/';
+
+addOp: PLUS | MINUS;
+mulOp: TIMES | DIVIDE;
 
 expression :
     IDENTIFIER |
