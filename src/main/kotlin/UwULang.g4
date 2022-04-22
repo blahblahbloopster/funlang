@@ -59,7 +59,11 @@ expression :
     new
 ;
 
-statement: ifStatement | whileLoop | (variableAssign SEMICOLON) | (expression SEMICOLON) | (RETURN expression SEMICOLON);
+statement: ifStatement | whileLoop | (variableAssign SEMICOLON) | (expression SEMICOLON) | (RETURN expression SEMICOLON) | (fieldAssign SEMICOLON);
+
+fieldAssign:
+    expression '.' IDENTIFIER '=' expression
+;
 
 ifStatement:
     IF OPEN_PAREN expression CLOSE_PAREN OPEN_BRACE statement* CLOSE_BRACE
@@ -88,7 +92,7 @@ impt:
 ;
 
 new:
-    NEW IDENTIFIER
+    NEW IDENTIFIER OPEN_PAREN expression* CLOSE_PAREN
 ;
 
 file:

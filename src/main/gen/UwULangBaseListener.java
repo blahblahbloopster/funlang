@@ -123,6 +123,18 @@ public class UwULangBaseListener implements UwULangListener {
 	 *
 	 * <p>The default implementation does nothing.</p>
 	 */
+	@Override public void enterFieldAssign(UwULangParser.FieldAssignContext ctx) { }
+	/**
+	 * {@inheritDoc}
+	 *
+	 * <p>The default implementation does nothing.</p>
+	 */
+	@Override public void exitFieldAssign(UwULangParser.FieldAssignContext ctx) { }
+	/**
+	 * {@inheritDoc}
+	 *
+	 * <p>The default implementation does nothing.</p>
+	 */
 	@Override public void enterIfStatement(UwULangParser.IfStatementContext ctx) { }
 	/**
 	 * {@inheritDoc}

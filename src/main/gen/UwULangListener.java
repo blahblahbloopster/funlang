@@ -97,6 +97,16 @@ public interface UwULangListener extends ParseTreeListener {
 	 */
 	void exitStatement(UwULangParser.StatementContext ctx);
 	/**
+	 * Enter a parse tree produced by {@link UwULangParser#fieldAssign}.
+	 * @param ctx the parse tree
+	 */
+	void enterFieldAssign(UwULangParser.FieldAssignContext ctx);
+	/**
+	 * Exit a parse tree produced by {@link UwULangParser#fieldAssign}.
+	 * @param ctx the parse tree
+	 */
+	void exitFieldAssign(UwULangParser.FieldAssignContext ctx);
+	/**
 	 * Enter a parse tree produced by {@link UwULangParser#ifStatement}.
 	 * @param ctx the parse tree
 	 */

@@ -64,6 +64,12 @@ public interface UwULangVisitor<T> extends ParseTreeVisitor<T> {
 	 */
 	T visitStatement(UwULangParser.StatementContext ctx);
 	/**
+	 * Visit a parse tree produced by {@link UwULangParser#fieldAssign}.
+	 * @param ctx the parse tree
+	 * @return the visitor result
+	 */
+	T visitFieldAssign(UwULangParser.FieldAssignContext ctx);
+	/**
 	 * Visit a parse tree produced by {@link UwULangParser#ifStatement}.
 	 * @param ctx the parse tree
 	 * @return the visitor result

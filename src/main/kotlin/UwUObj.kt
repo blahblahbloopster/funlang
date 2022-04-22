@@ -7,6 +7,8 @@ sealed class UwUType(val name: UwUName) {
     abstract val constructor: UwUConstructor
     abstract val isStatic: Boolean
 
+    fun findMethod(name: String, args: List<UwUType>) = methods.find { it.name == name && it.arguments.map { it.second } == args }
+
     fun getObj(data: LongArray, offset: Int): UwUObject {
         val value = data[offset]
         return if (isStatic) {
@@ -301,7 +303,7 @@ open class UwUStruct(
 
     override fun free(obj: UwUObject) {}
 
-    override fun refs(obj: UwUObject): List<UwUObject> = fields.map { field(obj as UwUObject.UwURef, it) }.filter { !it.type.isStatic }
+    override fun refs(obj: UwUObject): List<UwUObject> = fields.mapNotNull { field(obj as? UwUObject.UwURef ?: return@mapNotNull null, it) }.filter { !it.type.isStatic }
 
     fun field(obj: UwUObject.UwURef, field: UwuField): UwUObject {
         return field.type.getObj(UwUMem.data, obj.address.area.first + field.offset)

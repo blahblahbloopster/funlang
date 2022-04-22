@@ -65,6 +65,7 @@ class AntlerUwUParser {
                 UwuField(it.first, type!!, i * 8)
             }
             instance.fields.addAll(fields)
+            instance.constructor = UwUConstructor.NullConstructor(instance)
 
             val methods = struct.`fun`()
             for (method in methods) {
@@ -92,7 +93,7 @@ class AntlerUwUParser {
         override fun invoke(obj: UwUObject, args: List<UwUObject>): UwUObject {
             val scope = UwUInterpreter.ExecutionScope(null, mutableListOf(), mutableSetOf())
 
-            val executor = StatementEvaluator(imports, scope)
+            val executor = StatementEvaluator(imports, scope, obj)
 
             val res = executor.exec(node)
 
@@ -102,7 +103,7 @@ class AntlerUwUParser {
         }
     }
 
-    class StatementEvaluator(val imports: List<UwUImport>, var scope: UwUInterpreter.ExecutionScope) : UwULangBaseVisitor<Unit>() {
+    class StatementEvaluator(val imports: List<UwUImport>, var scope: UwUInterpreter.ExecutionScope, val obj: UwUObject) : UwULangBaseVisitor<Unit>() {
         private class ReturnException(val obj: UwUObject) : Exception()
 
         fun exec(node: RuleContext): UwUObject {
@@ -115,7 +116,7 @@ class AntlerUwUParser {
         }
 
         override fun visitIfStatement(ctx: UwULangParser.IfStatementContext) {
-            val condition = ExpressionVisitor(imports, scope).visitExpression(ctx.expression())!!
+            val condition = ExpressionVisitor(imports, scope, obj).visitExpression(ctx.expression())!!
             if ((condition as UwUObject.UwUStatic).value != 0L) {
                 val oldScope = scope
                 scope = UwUInterpreter.ExecutionScope(scope, scope.variables.toMutableList(), mutableSetOf())
@@ -131,7 +132,7 @@ class AntlerUwUParser {
         }
 
         override fun visitWhileLoop(ctx: UwULangParser.WhileLoopContext) {
-            val visitor = ExpressionVisitor(imports, scope)
+            val visitor = ExpressionVisitor(imports, scope, obj)
             while ((visitor.visitExpression(ctx.expression())!! as UwUObject.UwUStatic).value != 0L) {
                 val oldScope = scope
                 scope = UwUInterpreter.ExecutionScope(scope, scope.variables.toMutableList(), mutableSetOf())
@@ -147,10 +148,19 @@ class AntlerUwUParser {
         }
 
         override fun visitVariableAssign(ctx: UwULangParser.VariableAssignContext) {
-            val expr = ExpressionVisitor(imports, scope).visitExpression(ctx.expression())!!
+            val expr = ExpressionVisitor(imports, scope, obj).visitExpression(ctx.expression())!!
             scope.addedRoots.add(expr)
             val found = scope.variables.find { it.name == ctx.IDENTIFIER().text } ?: UwUInterpreter.UwUVar(ctx.IDENTIFIER().text, nil).also { scope.variables.add(it) }
             found.value = expr
+        }
+
+        override fun visitFieldAssign(ctx: UwULangParser.FieldAssignContext) {
+            val evaluator = ExpressionVisitor(imports, scope, obj)
+            val res = evaluator.visitExpression(ctx.expression(0))!!
+            val value = evaluator.visitExpression(ctx.expression(1))!!
+            val type = res.type as UwUStruct
+            val field = type.fields.find { it.name == ctx.IDENTIFIER().text }!!
+            type.setField(res as UwUObject.UwURef, field, value)
         }
 
         override fun visitStatement(ctx: UwULangParser.StatementContext) {
@@ -159,22 +169,24 @@ class AntlerUwUParser {
             val asVar = ctx.variableAssign()
             val asExpr = ctx.expression()
             val asReturn = ctx.RETURN()
+            val asFieldAssign = ctx.fieldAssign()
 
             when {
                 asIf != null -> visitIfStatement(asIf)
                 asWhile != null -> visitWhileLoop(asWhile)
                 asVar != null -> visitVariableAssign(asVar)
-                asExpr != null -> ExpressionVisitor(imports, scope).visitExpression(asExpr)
+                asExpr != null -> ExpressionVisitor(imports, scope, obj).visitExpression(asExpr)
                 asReturn != null -> {
-                    val res = ExpressionVisitor(imports, scope).visitExpression(ctx.expression())
+                    val res = ExpressionVisitor(imports, scope, obj).visitExpression(ctx.expression())
                     throw ReturnException(res!!)
                 }
+                asFieldAssign != null -> visitFieldAssign(asFieldAssign)
             }
         }
     }
 
     // TODO: keepalive somehow, maybe make subscopes for each expression evaluation?
-    class ExpressionVisitor(val imports: List<UwUImport>, val eScope: UwUInterpreter.ExecutionScope) : UwULangBaseVisitor<UwUObject?>() {
+    class ExpressionVisitor(val imports: List<UwUImport>, val eScope: UwUInterpreter.ExecutionScope, val obj: UwUObject) : UwULangBaseVisitor<UwUObject?>() {
         override fun defaultResult(): UwUObject? {
             return null
         }
@@ -185,7 +197,7 @@ class AntlerUwUParser {
             val cls = imports.find { it.funName == funName }!!.name
             val instance = UwUType.registry[cls]!!
 
-            return instance.methods.find { it.name == funName }!!.invoke(nil, args)
+            return instance.findMethod(ctx.IDENTIFIER().text, args.map { it.type })!!.invoke(nil, args)
         }
 
         override fun visitExpression(ctx: UwULangParser.ExpressionContext): UwUObject? {
@@ -221,16 +233,16 @@ class AntlerUwUParser {
                         if (asMultiplication.TIMES() != null) UwUObject.UwUStatic((a.value.double() / b.value.double()).long(), UwUPrimitive.UwUDouble) else UwUObject.UwUStatic((a.value.double() / b.value.double()).long(), UwUPrimitive.UwUDouble)
                 }
                 asVariable != null -> {
-                    eScope.variables.find { it.name == ctx.IDENTIFIER().text }?.value ?: imports.find { it.name.simpleName == ctx.IDENTIFIER().text }!!.run { UwUConstructor.NullConstructor(UwUType.registry[this.name]!!).invoke(emptyList()) }
+                    if (asVariable.text == "this") obj else eScope.variables.find { it.name == ctx.IDENTIFIER().text }?.value ?: imports.find { it.name.simpleName == ctx.IDENTIFIER().text }!!.run { UwUConstructor.NullConstructor(UwUType.registry[this.name]!!).invoke(emptyList()) }
                 }
                 asFieldAccess != null -> {
                     visitExpression(ctx.expression(0)!!)!!
-                        .run { (type as UwUStruct).field(this as UwUObject.UwURef, (type as UwUStruct).fields.find { it.name == asFieldAccess.text }!!) }
+                        .run { (type as UwUStruct).field(this as UwUObject.UwURef, (type as UwUStruct).fields.find { it.name == asFieldAccess.IDENTIFIER().text }!!) }
                 }
                 asMethodInv != null -> {
                     val obj = visitExpression(ctx.expression(0))!!
                     val args = asMethodInv.functionInvocation().expression().map { visitExpression(it)!! }
-                    obj.type.methods.find { it.name == asMethodInv.functionInvocation().IDENTIFIER().text }!!.invoke(obj, args)
+                    obj.type.findMethod(asMethodInv.functionInvocation().IDENTIFIER().text, args.map { it.type })!!.invoke(obj, args)
                 }
                 asFunctionInv != null -> visitFunctionInvocation(asFunctionInv)
                 asParenthesis != null -> visitExpression(ctx.expression(0))
@@ -251,11 +263,13 @@ class AntlerUwUParser {
                     obj
                 }
                 asNew != null -> {
-//                    val type = UwUType.registry[asNew.IDENTIFIER().text]
-                    TODO()
+                    val type = imports.find { it.name.simpleName == asNew.IDENTIFIER().text }!!.run { UwUType.registry[this.name]!! }
+                    val args = asNew.expression().map { visitExpression(it)!! }
+
+                    type.constructor.invoke(args)
                 }
                 else -> nil
-            }
+            }?.apply { if (this is UwUObject.UwURef) eScope.addRoot(this) }
         }
     }
 
@@ -279,27 +293,36 @@ fun main() {
         impowt uwu.Wong;
         impowt uwu.Doubwe;
         
+        stwuct Pos {
+            x: Wong,
+            y: Wong;
+        }
+        
         stwuct Foo {
-            asiofew: Wong,
-            jwoiiof: Doubwe;
-            
             static fuwn baw() {
-                System.pwintwn("aaaaaaa");
+                wet position = new Pos();
+                System.gc();
+                System.pwintwn(position.x);
+                position.x = position.x + 10;
+                System.pwintwn(position.x);
             }
         
             static fuwn bwah() {
                 mewt nuwm = 0;
                 whiwe (nuwm.wessthan(10)) {
                     System.pwintwn("Hewwo, wowwd!");
-                    Foo.baw();
+                    this.baw();
                     nuwm = nuwm + 1;
                 }
+                System.gc();
             }
         }
     """.trimIndent()
 
     AntlerUwUParser().parseFile(inp)
 
-    val method = (UwUType.registry[UwUName("Foo")] as UwUStruct).methods.find { it.name == "bwah" }!!
-    method.invoke(nil, emptyList())
+    val resolvedType = UwUType.registry[UwUName("Foo")] as UwUStruct
+    val method = resolvedType.methods.find { it.name == "bwah" }!!
+    val instance = resolvedType.constructor.invoke(emptyList())
+    method.invoke(instance, emptyList())
 }

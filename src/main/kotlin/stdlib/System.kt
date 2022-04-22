@@ -12,5 +12,13 @@ object System : UwUStruct(UwUName("uwu", "System"), mutableListOf(), mutableList
         val str = charObjects.map { (it as UwUObject.UwUStatic).value.toInt().toChar() }.joinToString("")
         println(str)
         nil
+    },
+    UwUMethod.NativeMethod("pwintwn", listOf("num" to UwUPrimitive.UwULong), UwUPrimitive.UwuVoid, true) { _, b ->
+        println((b[0] as UwUObject.UwUStatic).value)
+        nil
+    },
+    UwUMethod.NativeMethod("gc", emptyList(), UwUPrimitive.UwuVoid, true) { _, _ ->
+        UwUMem.gc()
+        nil
     }
 ), UwUConstructor.NativeConstructor(emptyList()) { throw UnsupportedOperationException() })
