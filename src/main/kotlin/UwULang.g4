@@ -24,10 +24,11 @@ MUT: 'mewt';
 IMPORT: 'impowt';
 RETURN: 'wetuwn';
 PACKAGE: 'package';
+AS: 'as';
 
 IDENTIFIER: [a-zA-Z_] [a-zA-Z_0-9]*;
 
-KEYWORD : STRUCT | FUN | NEW | IF | WHILE | LET | MUT | IMPORT | RETURN | PACKAGE;
+KEYWORD : STRUCT | FUN | NEW | IF | WHILE | LET | MUT | IMPORT | RETURN | PACKAGE | AS;
 
 nameTypePair: name=IDENTIFIER COLON type=IDENTIFIER;
 
@@ -57,7 +58,8 @@ expression :
     STRING_LITERAL |
     expression mulOp expression |
     expression addOp expression |
-    new
+    new |
+    expression AS IDENTIFIER
 ;
 
 statement: ifStatement | whileLoop | (variableAssign SEMICOLON) | (expression SEMICOLON) | (RETURN expression SEMICOLON) | (fieldAssign SEMICOLON);

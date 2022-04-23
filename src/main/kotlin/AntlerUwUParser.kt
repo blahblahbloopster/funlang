@@ -64,7 +64,7 @@ class AntlerUwUParser {
         val structsWithInstances = structFinder.foundStructs.map { struct ->
             val name = UwUName(*structFinder.pkg + struct.IDENTIFIER().text)
 
-            struct to UwUStruct(name, mutableListOf(), mutableListOf(), UwUConstructor.NullConstructor(UwUPrimitive.UwuVoid))
+            struct to UwUStruct(name, mutableListOf(), mutableListOf(), UwUConstructor.NullConstructor(UwUPrimitive.UwuVoid), typeParameters)
         }
 
         for ((struct, instance) in structsWithInstances) {
@@ -87,7 +87,7 @@ class AntlerUwUParser {
                 val returnType = method.returnType?.run { structFinder.imports.find { im -> im.name.simpleName == this.text }?.run { UwUType.registry[this.name] } ?: structsWithInstances.find { s -> s.second.name.simpleName == this.text }?.second }
                     ?: UwUPrimitive.UwuVoid
 
-                instance.methods.add(UwULangMethod(name, false, args, returnType, method, structFinder.imports + structsWithInstances.map { UwUImport(it.second.name) }))
+                instance.methods.add(UwULangMethod(name, false, args, method, structFinder.imports + structsWithInstances.map { UwUImport(it.second.name) }))
             }
         }
 
@@ -98,7 +98,7 @@ class AntlerUwUParser {
 
     data class UwULangMethod(override val name: String, override val static: Boolean,
                         override val arguments: List<Pair<String, UwUType>>,
-                        override val returnType: UwUType, private val node: RuleContext,
+                        /*override val returnType: UwUType,*/ private val node: RuleContext,
                         private val imports: List<UwUImport>) : UwUMethod {
 
         override fun invoke(obj: UwUObject, args: List<UwUObject>): UwUObject {
@@ -202,8 +202,7 @@ class AntlerUwUParser {
         }
     }
 
-    // TODO: keepalive somehow, maybe make subscopes for each expression evaluation?
-    class ExpressionVisitor(val imports: List<UwUImport>, val eScope: UwUInterpreter.ExecutionScope, val obj: UwUObject) : UwULangBaseVisitor<UwUObject?>() {
+    class ExpressionVisitor(private val imports: List<UwUImport>, private val eScope: UwUInterpreter.ExecutionScope, private val obj: UwUObject) : UwULangBaseVisitor<UwUObject?>() {
         override fun defaultResult(): UwUObject? {
             return null
         }
@@ -229,6 +228,7 @@ class AntlerUwUParser {
             val asFloat = ctx.FLOAT()
             val asString = ctx.STRING_LITERAL()
             val asNew = ctx.new_()
+            val asCast = ctx.AS()
 
             return when {
                 asAddition != null -> {
@@ -284,6 +284,12 @@ class AntlerUwUParser {
                     val args = asNew.expression().map { visitExpression(it)!! }
 
                     type.constructor.invoke(args)
+                }
+                asCast != null -> {
+                    val expr = visitExpression(ctx.expression(0))!!
+                    val type = imports.find { it.name.simpleName == ctx.IDENTIFIER().text }!!.run { UwUType.registry[this.name]!! }
+                    require(expr.type == type)
+                    expr
                 }
                 else -> nil
             }?.apply { if (this is UwUObject.UwURef) eScope.addRoot(this) }

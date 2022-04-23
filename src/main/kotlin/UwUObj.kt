@@ -1,4 +1,3 @@
-import UwUMem.currentFlag
 import UwUMem.malloc
 import UwUMem.nil
 
@@ -6,8 +5,11 @@ sealed class UwUType(val name: UwUName) {
     abstract val methods: List<UwUMethod>
     abstract val constructor: UwUConstructor
     abstract val isStatic: Boolean
+    abstract val typeParameters: List<String>
 
-    fun findMethod(name: String, args: List<UwUType>) = methods.find { it.name == name && it.arguments.map { it.second } == args }
+    abstract fun parameterized(args: List<UwUType>): UwUType
+
+    fun findMethod(name: String, args: List<UwUType>) = methods.find { it.name == name && it.arguments.map { a -> a.second } == args }
 
     fun getObj(data: LongArray, offset: Int): UwUObject {
         val value = data[offset]
@@ -45,14 +47,14 @@ class UwuField(val name: String, val type: UwUType, val offset: Int)
 interface UwUMethod {
     val name: String
     val arguments: List<Pair<String, UwUType>>
-    val returnType: UwUType
+//    val returnType: UwUType
     val static: Boolean
 
     fun invoke(obj: UwUObject, args: List<UwUObject>): UwUObject
 
     class NativeMethod(override val name: String,
                        override val arguments: List<Pair<String, UwUType>>,
-                       override val returnType: UwUType,
+                       /*override val returnType: UwUType,*/
                        override val static: Boolean = false,
                        private val lambda: (UwUObject, List<UwUObject>) -> UwUObject) : UwUMethod {
         override fun invoke(obj: UwUObject, args: List<UwUObject>): UwUObject = lambda(obj, args)
@@ -159,7 +161,8 @@ object UwUMem {
         }
 
         fun findFree(sizeWords: Int, type: UwUType): MemoryBlock? {
-            val bucketSize = (sizeWords shl 1).takeHighestOneBit()  // TODO: make this smorter
+            var bucketSize = (sizeWords shl 1).takeHighestOneBit()
+            if (bucketSize shr 1 == sizeWords) bucketSize = sizeWords
             val midpoint = (area.first + area.last + 1) / 2
             return when {
                 !available -> null
@@ -221,11 +224,10 @@ object UwUMem {
 sealed interface UwUObject {
     val type: UwUType
 
-    data class UwURef(val address: UwUMem.MemoryBlock, override val type: UwUType) : UwUObject {
-        fun keepalive() {
-            address.gcFlag = currentFlag
-        }
-    }
+    data class UwURef(
+        val address: UwUMem.MemoryBlock,
+        override val type: UwUType,
+    ) : UwUObject
 
     data class UwUStatic(var value: Long, override val type: UwUType) : UwUObject
 }
@@ -236,6 +238,12 @@ sealed class UwUPrimitive(name: UwUName) : UwUType(name) {
 
     override fun refs(obj: UwUObject): List<UwUObject> = emptyList()
 
+    override val typeParameters: List<Pair<String, UwUType>> = emptyList()
+
+    override fun parameterized(args: List<UwUType>): UwUType {
+        return this
+    }
+
     object UwuVoid : UwUPrimitive(UwUName("uwu", "Void")) {
         override val methods: List<UwUMethod> = emptyList()
         override val constructor: UwUConstructor = UwUConstructor.NativeConstructor(emptyList()) { nil }
@@ -243,12 +251,12 @@ sealed class UwUPrimitive(name: UwUName) : UwUType(name) {
     object UwULong : UwUPrimitive(UwUName("uwu", "Wong")) {
         override val constructor: UwUConstructor = UwUConstructor.NativeConstructor(emptyList()) { UwUObject.UwUStatic(0L, UwULong) }
         override val methods = listOf(
-            UwUMethod.NativeMethod("pwus", listOf("b" to UwULong), UwULong) { a, b -> UwUObject.UwUStatic((a as UwUObject.UwUStatic).value + (b[0] as UwUObject.UwUStatic).value, UwULong) },
-            UwUMethod.NativeMethod("minus", listOf("b" to UwULong), UwULong) { a, b -> UwUObject.UwUStatic((a as UwUObject.UwUStatic).value - (b[0] as UwUObject.UwUStatic).value, UwULong) },
-            UwUMethod.NativeMethod("times", listOf("b" to UwULong), UwULong) { a, b -> UwUObject.UwUStatic((a as UwUObject.UwUStatic).value * (b[0] as UwUObject.UwUStatic).value, UwULong) },
-            UwUMethod.NativeMethod("divide", listOf("b" to UwULong), UwULong) { a, b -> UwUObject.UwUStatic((a as UwUObject.UwUStatic).value / (b[0] as UwUObject.UwUStatic).value, UwULong) },
-            UwUMethod.NativeMethod("eqwaws", listOf("b" to UwULong), UwUBoolean) { a, b -> UwUObject.UwUStatic(if ((a as UwUObject.UwUStatic).value == (b[0] as UwUObject.UwUStatic).value) 1L else 0L, UwUBoolean) },
-            UwUMethod.NativeMethod("wessthan", listOf("b" to UwULong), UwUBoolean) { a, b -> UwUObject.UwUStatic(if ((a as UwUObject.UwUStatic).value < (b[0] as UwUObject.UwUStatic).value) 1L else 0L, UwUBoolean) },
+            UwUMethod.NativeMethod("pwus", listOf("b" to UwULong)) { a, b -> UwUObject.UwUStatic((a as UwUObject.UwUStatic).value + (b[0] as UwUObject.UwUStatic).value, UwULong) },
+            UwUMethod.NativeMethod("minus", listOf("b" to UwULong)) { a, b -> UwUObject.UwUStatic((a as UwUObject.UwUStatic).value - (b[0] as UwUObject.UwUStatic).value, UwULong) },
+            UwUMethod.NativeMethod("times", listOf("b" to UwULong)) { a, b -> UwUObject.UwUStatic((a as UwUObject.UwUStatic).value * (b[0] as UwUObject.UwUStatic).value, UwULong) },
+            UwUMethod.NativeMethod("divide", listOf("b" to UwULong)) { a, b -> UwUObject.UwUStatic((a as UwUObject.UwUStatic).value / (b[0] as UwUObject.UwUStatic).value, UwULong) },
+            UwUMethod.NativeMethod("eqwaws", listOf("b" to UwULong)) { a, b -> UwUObject.UwUStatic(if ((a as UwUObject.UwUStatic).value == (b[0] as UwUObject.UwUStatic).value) 1L else 0L, UwUBoolean) },
+            UwUMethod.NativeMethod("wessthan", listOf("b" to UwULong)) { a, b -> UwUObject.UwUStatic(if ((a as UwUObject.UwUStatic).value < (b[0] as UwUObject.UwUStatic).value) 1L else 0L, UwUBoolean) },
         )
     }
     object UwUDouble : UwUPrimitive(UwUName("uwu", "Doubwe")) {
@@ -257,10 +265,10 @@ sealed class UwUPrimitive(name: UwUName) : UwUType(name) {
         fun Double.long() = java.lang.Double.doubleToLongBits(this)
 
         override val methods = listOf(
-            UwUMethod.NativeMethod("plus", listOf("b" to UwUDouble), UwUDouble) { a, b -> UwUObject.UwUStatic(((a as UwUObject.UwUStatic).value.double() + (b[0] as UwUObject.UwUStatic).value.double()).long(), UwUDouble) },
-            UwUMethod.NativeMethod("minus", listOf("b" to UwUDouble), UwUDouble) { a, b -> UwUObject.UwUStatic(((a as UwUObject.UwUStatic).value.double() - (b[0] as UwUObject.UwUStatic).value.double()).long(), UwUDouble) },
-            UwUMethod.NativeMethod("times", listOf("b" to UwUDouble), UwUDouble) { a, b -> UwUObject.UwUStatic(((a as UwUObject.UwUStatic).value.double() * (b[0] as UwUObject.UwUStatic).value.double()).long(), UwUDouble) },
-            UwUMethod.NativeMethod("divide", listOf("b" to UwUDouble), UwUDouble) { a, b -> UwUObject.UwUStatic(((a as UwUObject.UwUStatic).value.double() / (b[0] as UwUObject.UwUStatic).value.double()).long(), UwUDouble) },
+            UwUMethod.NativeMethod("plus", listOf("b" to UwUDouble)) { a, b -> UwUObject.UwUStatic(((a as UwUObject.UwUStatic).value.double() + (b[0] as UwUObject.UwUStatic).value.double()).long(), UwUDouble) },
+            UwUMethod.NativeMethod("minus", listOf("b" to UwUDouble)) { a, b -> UwUObject.UwUStatic(((a as UwUObject.UwUStatic).value.double() - (b[0] as UwUObject.UwUStatic).value.double()).long(), UwUDouble) },
+            UwUMethod.NativeMethod("times", listOf("b" to UwUDouble)) { a, b -> UwUObject.UwUStatic(((a as UwUObject.UwUStatic).value.double() * (b[0] as UwUObject.UwUStatic).value.double()).long(), UwUDouble) },
+            UwUMethod.NativeMethod("divide", listOf("b" to UwUDouble)) { a, b -> UwUObject.UwUStatic(((a as UwUObject.UwUStatic).value.double() / (b[0] as UwUObject.UwUStatic).value.double()).long(), UwUDouble) },
         )
     }
 
@@ -296,10 +304,15 @@ open class UwUStruct(
     name: UwUName,
     val fields: MutableList<UwuField>,
     override val methods: MutableList<UwUMethod>,
-    override var constructor: UwUConstructor
+    override var constructor: UwUConstructor,
+    override val typeParameters: List<Pair<String, UwUType>>
 ) : UwUType(name) {
     override val isStatic: Boolean = false
     val sizeWords get() = (fields.maxOfOrNull { it.offset } ?: -1) + 1
+
+    override fun parameterized(args: List<UwUType>): UwUType {
+        return this
+    }
 
     override fun free(obj: UwUObject) {}
 
@@ -323,20 +336,26 @@ class UwUArray private constructor(val type: UwUType) : UwUType(UwUName("uwu", "
         }
     }
 
+    override val typeParameters: List<Pair<String, UwUType>> = listOf("type" to UwUPrimitive.UwuVoid)
+
+    override fun parameterized(args: List<UwUType>): UwUType {
+        return this
+    }
+
     override val methods = listOf(
-        UwUMethod.NativeMethod("get", listOf("index" to UwUPrimitive.UwULong), type) { a, b ->
+        UwUMethod.NativeMethod("get", listOf("index" to UwUPrimitive.UwULong)) { a, b ->
             val index = (b[0] as UwUObject.UwUStatic).value
             val addr = (a as UwUObject.UwURef).address.area.first + index + 1
             type.getObj(UwUMem.data, addr.toInt())
         },
-        UwUMethod.NativeMethod("set", listOf("index" to UwUPrimitive.UwULong, "obj" to type), type) { a, b ->
+        UwUMethod.NativeMethod("set", listOf("index" to UwUPrimitive.UwULong, "obj" to type)) { a, b ->
             val index = (b[0] as UwUObject.UwUStatic).value
             val toPut = b[1]
             val addr = (a as UwUObject.UwURef).address.area.first + index + 1
             type.putObj(UwUMem.data, addr.toInt(), toPut)
             nil
         },
-        UwUMethod.NativeMethod("getSize", emptyList(), UwUPrimitive.UwULong) { a, b ->
+        UwUMethod.NativeMethod("getSize", emptyList()) { a, b ->
             UwUPrimitive.UwULong.getObj(UwUMem.data, (a as UwUObject.UwURef).address.area.first)
         }
     )
