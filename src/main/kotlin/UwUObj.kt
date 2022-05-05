@@ -1,15 +1,16 @@
 import UwUMem.malloc
 import UwUMem.nil
+import stdlib.UwUString
+import kotlin.random.Random.Default.nextLong
 
 sealed class UwUType(val name: UwUName) {
     abstract val methods: List<UwUMethod>
     abstract val constructor: UwUConstructor
     abstract val isStatic: Boolean
-    abstract val typeParameters: List<String>
 
-    abstract fun parameterized(args: List<UwUType>): UwUType
-
-    fun findMethod(name: String, args: List<UwUType>) = methods.find { it.name == name && it.arguments.map { a -> a.second } == args }
+    fun findMethod(name: String, args: List<UwUType>): UwUMethod {
+        return methods.find { it.name == name && it.arguments.mapIndexed { index, pair -> pair.second == args.getOrNull(index) || pair.second === UwUAny }.all { v -> v } } ?: throw RuntimeException("Method '$name' with arguments $args not found for type ${this.name}!")
+    }
 
     fun getObj(data: LongArray, offset: Int): UwUObject {
         val value = data[offset]
@@ -33,12 +34,32 @@ sealed class UwUType(val name: UwUName) {
 
     abstract fun free(obj: UwUObject)
 
+    override fun equals(other: Any?): Boolean {
+        return if (other === UwUAny || this === UwUAny) true else this === other
+//        if (this === other) return true
+//        if (javaClass != other?.javaClass) return false
+//
+//        other as UwUType
+//
+//        if (name != other.name) return false
+//
+//        return true
+    }
+
+    override fun hashCode(): Int {
+        return name.hashCode()
+    }
+
     companion object {
         val registry = mutableMapOf<UwUName, UwUType>()
+        val idRegistry = mutableMapOf<Long, UwUType>()
     }
+
+    val id = nextLong()
 
     init {
         registry[name] = this
+        idRegistry[id] = this
     }
 }
 
@@ -47,14 +68,12 @@ class UwuField(val name: String, val type: UwUType, val offset: Int)
 interface UwUMethod {
     val name: String
     val arguments: List<Pair<String, UwUType>>
-//    val returnType: UwUType
     val static: Boolean
 
     fun invoke(obj: UwUObject, args: List<UwUObject>): UwUObject
 
     class NativeMethod(override val name: String,
                        override val arguments: List<Pair<String, UwUType>>,
-                       /*override val returnType: UwUType,*/
                        override val static: Boolean = false,
                        private val lambda: (UwUObject, List<UwUObject>) -> UwUObject) : UwUMethod {
         override fun invoke(obj: UwUObject, args: List<UwUObject>): UwUObject = lambda(obj, args)
@@ -238,12 +257,6 @@ sealed class UwUPrimitive(name: UwUName) : UwUType(name) {
 
     override fun refs(obj: UwUObject): List<UwUObject> = emptyList()
 
-    override val typeParameters: List<Pair<String, UwUType>> = emptyList()
-
-    override fun parameterized(args: List<UwUType>): UwUType {
-        return this
-    }
-
     object UwuVoid : UwUPrimitive(UwUName("uwu", "Void")) {
         override val methods: List<UwUMethod> = emptyList()
         override val constructor: UwUConstructor = UwUConstructor.NativeConstructor(emptyList()) { nil }
@@ -305,14 +318,9 @@ open class UwUStruct(
     val fields: MutableList<UwuField>,
     override val methods: MutableList<UwUMethod>,
     override var constructor: UwUConstructor,
-    override val typeParameters: List<Pair<String, UwUType>>
 ) : UwUType(name) {
     override val isStatic: Boolean = false
     val sizeWords get() = (fields.maxOfOrNull { it.offset } ?: -1) + 1
-
-    override fun parameterized(args: List<UwUType>): UwUType {
-        return this
-    }
 
     override fun free(obj: UwUObject) {}
 
@@ -327,42 +335,47 @@ open class UwUStruct(
     }
 }
 
-class UwUArray private constructor(val type: UwUType) : UwUType(UwUName("uwu", "arrays", "${type.name.simpleName}Array")) {
-    companion object {
-        private val registry = mutableMapOf<UwUType, UwUArray>()
+object UwUAny : UwUType(UwUName("uwu", "Any")) {
+    override val methods: List<UwUMethod> = emptyList()
+    override val constructor: UwUConstructor get() = TODO("Not yet implemented")
+    override val isStatic: Boolean get() = TODO("Not yet implemented")
 
-        operator fun get(type: UwUType): UwUArray {
-            return registry.getOrPut(type) { UwUArray(type) }
-        }
+    override fun refs(obj: UwUObject): List<UwUObject> {
+        TODO("Not yet implemented")
     }
 
-    override val typeParameters: List<Pair<String, UwUType>> = listOf("type" to UwUPrimitive.UwuVoid)
-
-    override fun parameterized(args: List<UwUType>): UwUType {
-        return this
+    override fun free(obj: UwUObject) {
+        TODO("Not yet implemented")
     }
+}
 
+object UwUArray : UwUType(UwUName("uwu", "Awway")) {
     override val methods = listOf(
         UwUMethod.NativeMethod("get", listOf("index" to UwUPrimitive.UwULong)) { a, b ->
             val index = (b[0] as UwUObject.UwUStatic).value
-            val addr = (a as UwUObject.UwURef).address.area.first + index + 1
+            val addr = (a as UwUObject.UwURef).address.area.first + index + 2
+            val type = idRegistry[UwUMem.data[a.address.area.first + 1]]!!
             type.getObj(UwUMem.data, addr.toInt())
         },
-        UwUMethod.NativeMethod("set", listOf("index" to UwUPrimitive.UwULong, "obj" to type)) { a, b ->
+        UwUMethod.NativeMethod("set", listOf("index" to UwUPrimitive.UwULong, "obj" to UwUAny)) { a, b ->
             val index = (b[0] as UwUObject.UwUStatic).value
             val toPut = b[1]
-            val addr = (a as UwUObject.UwURef).address.area.first + index + 1
-            type.putObj(UwUMem.data, addr.toInt(), toPut)
+            val addr = (a as UwUObject.UwURef).address.area.first + index + 2
+            putObj(UwUMem.data, addr.toInt(), toPut)
             nil
         },
         UwUMethod.NativeMethod("getSize", emptyList()) { a, b ->
             UwUPrimitive.UwULong.getObj(UwUMem.data, (a as UwUObject.UwURef).address.area.first)
+        },
+        UwUMethod.NativeMethod("getType", emptyList()) { a, _ ->
+            idRegistry[UwUMem.data[(a as UwUObject.UwURef).address.area.first + 1]]!!.run { UwUConstructor.NullConstructor(this).invoke(emptyList()) }
         }
     )
-    override val constructor: UwUConstructor = UwUConstructor.NativeConstructor(listOf("size" to UwUPrimitive.UwULong)) { args ->
-        val size = (args[0] as UwUObject.UwUStatic).value.toInt()
-        val region = malloc(size + 1, this)
+    override val constructor: UwUConstructor = UwUConstructor.NativeConstructor(listOf("type" to UwUAny,"size" to UwUPrimitive.UwULong)) { args ->
+        val size = (args[1] as UwUObject.UwUStatic).value.toInt()
+        val region = malloc(size + 2, this)
         UwUMem.data[region.area.first] = size.toLong()
+        UwUMem.data[region.area.first + 1] = args[0].type.id
         UwUObject.UwURef(region, this)
     }
     override val isStatic = false
@@ -374,9 +387,10 @@ class UwUArray private constructor(val type: UwUType) : UwUType(UwUName("uwu", "
     fun items(obj: UwUObject.UwURef): List<UwUObject> {
         val start = obj.address.area.first
         val size = UwUMem.data[start].toInt()
+        val type = UwUMem.data[start + 1]
         val items = mutableListOf<UwUObject>()
-        for (i in start + 1 .. start + size) {
-            val item = type.getObj(UwUMem.data, i)
+        for (i in start + 2 .. start + size + 1) {
+            val item = idRegistry[type]!!.getObj(UwUMem.data, i)
             items.add(item)
         }
         return items
@@ -385,7 +399,7 @@ class UwUArray private constructor(val type: UwUType) : UwUType(UwUName("uwu", "
     fun setItems(obj: UwUObject.UwURef, items: List<UwUObject>) {
         val start = obj.address.area.first
         val size = UwUMem.data[start].toInt()
-        for ((n, i) in (start + 1 .. start + size).withIndex()) {
+        for ((n, i) in (start + 2 .. start + size + 1).withIndex()) {
             items[n].type.putObj(UwUMem.data, i, items[n])
         }
     }

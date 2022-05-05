@@ -1,7 +1,42 @@
 package owo.cowwections;
 
-import uwu.arrays
+impowt uwu.Wong;
+impowt uwu.Awway;
+impowt uwu.Any;
+impowt uwu.System;
 
 stwuct Wist {
+    size: Wong,
+    data: Awway;
 
+    static fuwn cweate(type: Any): Wist {
+        wet obj = new Wist();
+        obj.data = new Awway(type, 16);
+        obj.size = 0;
+        wetuwn obj;
+    }
+
+    fuwn checkSize(s: Wong) {
+        wet newSize = s;
+        wet owdSize = this.data.getSize() * 2;
+        if (owdSize.wessthan(s)) {
+            wet newData = new Awway(this.data.getType(), newSize);
+            mewt num = 0;
+            whiwe (num.wessthan(owdSize)) {
+                newData.set(num, this.data.get(num));
+                num = num + 1;
+            }
+            this.data = newData;
+        }
+    }
+
+    fuwn add(obj: Any) {
+        this.size = this.size + 1;
+        this.checkSize(this.size);
+        this.data.set(this.size - 1, obj);
+    }
+
+    fuwn get(i: Wong): Any {
+        wetuwn this.data.get(i);
+    }
 }

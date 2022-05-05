@@ -1445,6 +1445,7 @@ public class UwULangParser extends Parser {
 		enterRule(_localctx, 32, RULE_new);
 		int _la;
 		try {
+			int _alt;
 			enterOuterAlt(_localctx, 1);
 			{
 			setState(225);
@@ -1453,21 +1454,35 @@ public class UwULangParser extends Parser {
 			match(IDENTIFIER);
 			setState(227);
 			match(OPEN_PAREN);
-			setState(231);
+			setState(233);
+			_errHandler.sync(this);
+			_alt = getInterpreter().adaptivePredict(_input,18,_ctx);
+			while ( _alt!=2 && _alt!=org.antlr.v4.runtime.atn.ATN.INVALID_ALT_NUMBER ) {
+				if ( _alt==1 ) {
+					{
+					{
+					setState(228);
+					expression(0);
+					setState(229);
+					match(T__0);
+					}
+					} 
+				}
+				setState(235);
+				_errHandler.sync(this);
+				_alt = getInterpreter().adaptivePredict(_input,18,_ctx);
+			}
+			setState(237);
 			_errHandler.sync(this);
 			_la = _input.LA(1);
-			while ((((_la) & ~0x3f) == 0 && ((1L << _la) & ((1L << INTEGER) | (1L << FLOAT) | (1L << OPEN_PAREN) | (1L << STRING_LITERAL) | (1L << NEW) | (1L << IDENTIFIER))) != 0)) {
+			if ((((_la) & ~0x3f) == 0 && ((1L << _la) & ((1L << INTEGER) | (1L << FLOAT) | (1L << OPEN_PAREN) | (1L << STRING_LITERAL) | (1L << NEW) | (1L << IDENTIFIER))) != 0)) {
 				{
-				{
-				setState(228);
+				setState(236);
 				expression(0);
 				}
-				}
-				setState(233);
-				_errHandler.sync(this);
-				_la = _input.LA(1);
 			}
-			setState(234);
+
+			setState(239);
 			match(CLOSE_PAREN);
 			}
 		}
@@ -1513,25 +1528,25 @@ public class UwULangParser extends Parser {
 			int _alt;
 			enterOuterAlt(_localctx, 1);
 			{
-			setState(240);
+			setState(245);
 			_errHandler.sync(this);
-			_alt = getInterpreter().adaptivePredict(_input,19,_ctx);
+			_alt = getInterpreter().adaptivePredict(_input,20,_ctx);
 			while ( _alt!=2 && _alt!=org.antlr.v4.runtime.atn.ATN.INVALID_ALT_NUMBER ) {
 				if ( _alt==1 ) {
 					{
 					{
-					setState(236);
+					setState(241);
 					match(IDENTIFIER);
-					setState(237);
+					setState(242);
 					match(T__1);
 					}
 					} 
 				}
-				setState(242);
+				setState(247);
 				_errHandler.sync(this);
-				_alt = getInterpreter().adaptivePredict(_input,19,_ctx);
+				_alt = getInterpreter().adaptivePredict(_input,20,_ctx);
 			}
-			setState(243);
+			setState(248);
 			match(IDENTIFIER);
 			}
 		}
@@ -1577,11 +1592,11 @@ public class UwULangParser extends Parser {
 		try {
 			enterOuterAlt(_localctx, 1);
 			{
-			setState(245);
+			setState(250);
 			match(PACKAGE);
-			setState(246);
+			setState(251);
 			qualifiedName();
-			setState(247);
+			setState(252);
 			match(SEMICOLON);
 			}
 		}
@@ -1638,33 +1653,33 @@ public class UwULangParser extends Parser {
 		try {
 			enterOuterAlt(_localctx, 1);
 			{
-			setState(249);
+			setState(254);
 			packageStatement();
-			setState(251); 
+			setState(256); 
 			_errHandler.sync(this);
 			_la = _input.LA(1);
 			do {
 				{
 				{
-				setState(250);
+				setState(255);
 				impt();
 				}
 				}
-				setState(253); 
+				setState(258); 
 				_errHandler.sync(this);
 				_la = _input.LA(1);
 			} while ( _la==IMPORT );
-			setState(258);
+			setState(263);
 			_errHandler.sync(this);
 			_la = _input.LA(1);
 			while (_la==STRUCT) {
 				{
 				{
-				setState(255);
+				setState(260);
 				struct();
 				}
 				}
-				setState(260);
+				setState(265);
 				_errHandler.sync(this);
 				_la = _input.LA(1);
 			}
@@ -1705,7 +1720,7 @@ public class UwULangParser extends Parser {
 	}
 
 	public static final String _serializedATN =
-		"\u0004\u0001\u001f\u0106\u0002\u0000\u0007\u0000\u0002\u0001\u0007\u0001"+
+		"\u0004\u0001\u001f\u010b\u0002\u0000\u0007\u0000\u0002\u0001\u0007\u0001"+
 		"\u0002\u0002\u0007\u0002\u0002\u0003\u0007\u0003\u0002\u0004\u0007\u0004"+
 		"\u0002\u0005\u0007\u0005\u0002\u0006\u0007\u0006\u0002\u0007\u0007\u0007"+
 		"\u0002\b\u0007\b\u0002\t\u0007\t\u0002\n\u0007\n\u0002\u000b\u0007\u000b"+
@@ -1739,15 +1754,16 @@ public class UwULangParser extends Parser {
 		"\u00d1\b\u000e\u0001\u000e\u0001\u000e\u0001\u000e\u0001\u000e\u0001\u000f"+
 		"\u0001\u000f\u0001\u000f\u0005\u000f\u00da\b\u000f\n\u000f\f\u000f\u00dd"+
 		"\t\u000f\u0001\u000f\u0001\u000f\u0001\u000f\u0001\u0010\u0001\u0010\u0001"+
-		"\u0010\u0001\u0010\u0005\u0010\u00e6\b\u0010\n\u0010\f\u0010\u00e9\t\u0010"+
-		"\u0001\u0010\u0001\u0010\u0001\u0011\u0001\u0011\u0005\u0011\u00ef\b\u0011"+
-		"\n\u0011\f\u0011\u00f2\t\u0011\u0001\u0011\u0001\u0011\u0001\u0012\u0001"+
-		"\u0012\u0001\u0012\u0001\u0012\u0001\u0013\u0001\u0013\u0004\u0013\u00fc"+
-		"\b\u0013\u000b\u0013\f\u0013\u00fd\u0001\u0013\u0005\u0013\u0101\b\u0013"+
-		"\n\u0013\f\u0013\u0104\t\u0013\u0001\u0013\u0000\u0001\u000e\u0014\u0000"+
+		"\u0010\u0001\u0010\u0001\u0010\u0001\u0010\u0005\u0010\u00e8\b\u0010\n"+
+		"\u0010\f\u0010\u00eb\t\u0010\u0001\u0010\u0003\u0010\u00ee\b\u0010\u0001"+
+		"\u0010\u0001\u0010\u0001\u0011\u0001\u0011\u0005\u0011\u00f4\b\u0011\n"+
+		"\u0011\f\u0011\u00f7\t\u0011\u0001\u0011\u0001\u0011\u0001\u0012\u0001"+
+		"\u0012\u0001\u0012\u0001\u0012\u0001\u0013\u0001\u0013\u0004\u0013\u0101"+
+		"\b\u0013\u000b\u0013\f\u0013\u0102\u0001\u0013\u0005\u0013\u0106\b\u0013"+
+		"\n\u0013\f\u0013\u0109\t\u0013\u0001\u0013\u0000\u0001\u000e\u0014\u0000"+
 		"\u0002\u0004\u0006\b\n\f\u000e\u0010\u0012\u0014\u0016\u0018\u001a\u001c"+
 		"\u001e \"$&\u0000\u0003\u0001\u0000\u001c\u001d\u0001\u0000\u001e\u001f"+
-		"\u0001\u0000\u0014\u0015\u0113\u0000(\u0001\u0000\u0000\u0000\u0002,\u0001"+
+		"\u0001\u0000\u0014\u0015\u0119\u0000(\u0001\u0000\u0000\u0000\u0002,\u0001"+
 		"\u0000\u0000\u0000\u0004D\u0001\u0000\u0000\u0000\u0006G\u0001\u0000\u0000"+
 		"\u0000\bV\u0001\u0000\u0000\u0000\nY\u0001\u0000\u0000\u0000\f[\u0001"+
 		"\u0000\u0000\u0000\u000eh\u0001\u0000\u0000\u0000\u0010\u008d\u0001\u0000"+
@@ -1755,8 +1771,8 @@ public class UwULangParser extends Parser {
 		"\u0000\u0000\u0016\u00a2\u0001\u0000\u0000\u0000\u0018\u00b0\u0001\u0000"+
 		"\u0000\u0000\u001a\u00b9\u0001\u0000\u0000\u0000\u001c\u00bd\u0001\u0000"+
 		"\u0000\u0000\u001e\u00d6\u0001\u0000\u0000\u0000 \u00e1\u0001\u0000\u0000"+
-		"\u0000\"\u00f0\u0001\u0000\u0000\u0000$\u00f5\u0001\u0000\u0000\u0000"+
-		"&\u00f9\u0001\u0000\u0000\u0000()\u0005\u001a\u0000\u0000)*\u0005\f\u0000"+
+		"\u0000\"\u00f5\u0001\u0000\u0000\u0000$\u00fa\u0001\u0000\u0000\u0000"+
+		"&\u00fe\u0001\u0000\u0000\u0000()\u0005\u001a\u0000\u0000)*\u0005\f\u0000"+
 		"\u0000*+\u0005\u001a\u0000\u0000+\u0001\u0001\u0000\u0000\u0000,-\u0005"+
 		"\u000e\u0000\u0000-.\u0005\u001a\u0000\u0000.4\u0005\t\u0000\u0000/0\u0003"+
 		"\u0000\u0000\u000001\u0005\u0001\u0000\u000013\u0001\u0000\u0000\u0000"+
@@ -1849,27 +1865,30 @@ public class UwULangParser extends Parser {
 		"\u0001\u0000\u0000\u0000\u00dd\u00db\u0001\u0000\u0000\u0000\u00de\u00df"+
 		"\u0005\u001a\u0000\u0000\u00df\u00e0\u0005\u000b\u0000\u0000\u00e0\u001f"+
 		"\u0001\u0000\u0000\u0000\u00e1\u00e2\u0005\u0011\u0000\u0000\u00e2\u00e3"+
-		"\u0005\u001a\u0000\u0000\u00e3\u00e7\u0005\u0007\u0000\u0000\u00e4\u00e6"+
-		"\u0003\u000e\u0007\u0000\u00e5\u00e4\u0001\u0000\u0000\u0000\u00e6\u00e9"+
-		"\u0001\u0000\u0000\u0000\u00e7\u00e5\u0001\u0000\u0000\u0000\u00e7\u00e8"+
-		"\u0001\u0000\u0000\u0000\u00e8\u00ea\u0001\u0000\u0000\u0000\u00e9\u00e7"+
-		"\u0001\u0000\u0000\u0000\u00ea\u00eb\u0005\b\u0000\u0000\u00eb!\u0001"+
-		"\u0000\u0000\u0000\u00ec\u00ed\u0005\u001a\u0000\u0000\u00ed\u00ef\u0005"+
-		"\u0002\u0000\u0000\u00ee\u00ec\u0001\u0000\u0000\u0000\u00ef\u00f2\u0001"+
-		"\u0000\u0000\u0000\u00f0\u00ee\u0001\u0000\u0000\u0000\u00f0\u00f1\u0001"+
-		"\u0000\u0000\u0000\u00f1\u00f3\u0001\u0000\u0000\u0000\u00f2\u00f0\u0001"+
-		"\u0000\u0000\u0000\u00f3\u00f4\u0005\u001a\u0000\u0000\u00f4#\u0001\u0000"+
-		"\u0000\u0000\u00f5\u00f6\u0005\u0018\u0000\u0000\u00f6\u00f7\u0003\"\u0011"+
-		"\u0000\u00f7\u00f8\u0005\u000b\u0000\u0000\u00f8%\u0001\u0000\u0000\u0000"+
-		"\u00f9\u00fb\u0003$\u0012\u0000\u00fa\u00fc\u0003\u001e\u000f\u0000\u00fb"+
-		"\u00fa\u0001\u0000\u0000\u0000\u00fc\u00fd\u0001\u0000\u0000\u0000\u00fd"+
-		"\u00fb\u0001\u0000\u0000\u0000\u00fd\u00fe\u0001\u0000\u0000\u0000\u00fe"+
-		"\u0102\u0001\u0000\u0000\u0000\u00ff\u0101\u0003\u0002\u0001\u0000\u0100"+
-		"\u00ff\u0001\u0000\u0000\u0000\u0101\u0104\u0001\u0000\u0000\u0000\u0102"+
+		"\u0005\u001a\u0000\u0000\u00e3\u00e9\u0005\u0007\u0000\u0000\u00e4\u00e5"+
+		"\u0003\u000e\u0007\u0000\u00e5\u00e6\u0005\u0001\u0000\u0000\u00e6\u00e8"+
+		"\u0001\u0000\u0000\u0000\u00e7\u00e4\u0001\u0000\u0000\u0000\u00e8\u00eb"+
+		"\u0001\u0000\u0000\u0000\u00e9\u00e7\u0001\u0000\u0000\u0000\u00e9\u00ea"+
+		"\u0001\u0000\u0000\u0000\u00ea\u00ed\u0001\u0000\u0000\u0000\u00eb\u00e9"+
+		"\u0001\u0000\u0000\u0000\u00ec\u00ee\u0003\u000e\u0007\u0000\u00ed\u00ec"+
+		"\u0001\u0000\u0000\u0000\u00ed\u00ee\u0001\u0000\u0000\u0000\u00ee\u00ef"+
+		"\u0001\u0000\u0000\u0000\u00ef\u00f0\u0005\b\u0000\u0000\u00f0!\u0001"+
+		"\u0000\u0000\u0000\u00f1\u00f2\u0005\u001a\u0000\u0000\u00f2\u00f4\u0005"+
+		"\u0002\u0000\u0000\u00f3\u00f1\u0001\u0000\u0000\u0000\u00f4\u00f7\u0001"+
+		"\u0000\u0000\u0000\u00f5\u00f3\u0001\u0000\u0000\u0000\u00f5\u00f6\u0001"+
+		"\u0000\u0000\u0000\u00f6\u00f8\u0001\u0000\u0000\u0000\u00f7\u00f5\u0001"+
+		"\u0000\u0000\u0000\u00f8\u00f9\u0005\u001a\u0000\u0000\u00f9#\u0001\u0000"+
+		"\u0000\u0000\u00fa\u00fb\u0005\u0018\u0000\u0000\u00fb\u00fc\u0003\"\u0011"+
+		"\u0000\u00fc\u00fd\u0005\u000b\u0000\u0000\u00fd%\u0001\u0000\u0000\u0000"+
+		"\u00fe\u0100\u0003$\u0012\u0000\u00ff\u0101\u0003\u001e\u000f\u0000\u0100"+
+		"\u00ff\u0001\u0000\u0000\u0000\u0101\u0102\u0001\u0000\u0000\u0000\u0102"+
 		"\u0100\u0001\u0000\u0000\u0000\u0102\u0103\u0001\u0000\u0000\u0000\u0103"+
-		"\'\u0001\u0000\u0000\u0000\u0104\u0102\u0001\u0000\u0000\u0000\u00164"+
-		":?NRhy{\u008d\u009d\u00aa\u00b0\u00b9\u00bd\u00c7\u00cb\u00d0\u00db\u00e7"+
-		"\u00f0\u00fd\u0102";
+		"\u0107\u0001\u0000\u0000\u0000\u0104\u0106\u0003\u0002\u0001\u0000\u0105"+
+		"\u0104\u0001\u0000\u0000\u0000\u0106\u0109\u0001\u0000\u0000\u0000\u0107"+
+		"\u0105\u0001\u0000\u0000\u0000\u0107\u0108\u0001\u0000\u0000\u0000\u0108"+
+		"\'\u0001\u0000\u0000\u0000\u0109\u0107\u0001\u0000\u0000\u0000\u00174"+
+		":?NRhy{\u008d\u009d\u00aa\u00b0\u00b9\u00bd\u00c7\u00cb\u00d0\u00db\u00e9"+
+		"\u00ed\u00f5\u0102\u0107";
 	public static final ATN _ATN =
 		new ATNDeserializer().deserialize(_serializedATN.toCharArray());
 	static {

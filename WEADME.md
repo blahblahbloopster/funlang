@@ -2,7 +2,7 @@
 
 ## UwuWang
 ### Vewsion Zewo Point Wum
-UwuWang is a WIP stwict typed wanguage
+UwuWang is a WIP dynamicawwy typed wanguage
 wif a mawk awnd sweep gawbage cowwectow 
 and stwucts.  The wefewence intewpwetew 
 is wittem in kotwin.

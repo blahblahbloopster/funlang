@@ -44,8 +44,15 @@ MINUS: '-';
 TIMES: '*';
 DIVIDE: '/';
 
+LESSTHANEQUALS: '<=';
+GREATERTHANEQUALS: '>=';
+LESSTHAN: '<';
+GREATERTHAN: '>';
+EQUALS: '==';
+
 addOp: PLUS | MINUS;
 mulOp: TIMES | DIVIDE;
+compOp: LESSTHAN | GREATERTHAN | LESSTHANEQUALS | GREATERTHANEQUALS | EQUALS;
 
 expression :
     IDENTIFIER |
@@ -95,7 +102,7 @@ impt:
 ;
 
 new:
-    NEW IDENTIFIER OPEN_PAREN expression* CLOSE_PAREN
+    NEW IDENTIFIER OPEN_PAREN (expression ',')* expression? CLOSE_PAREN
 ;
 
 qualifiedName:
