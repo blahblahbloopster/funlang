@@ -25,6 +25,9 @@ class AntlerUwUParser {
 
         override fun visitImpt(ctx: UwULangParser.ImptContext) {  // TODO: function name imports
             val qualifiedName = UwUName(*ctx.IDENTIFIER().map { it.text }.toTypedArray())
+            if (qualifiedName.names.first() == "javacompat") {
+                JavaType(Class.forName(qualifiedName.names.drop(1).joinToString(".")))
+            }
             imports.add(UwUImport(qualifiedName))
         }
 
@@ -39,6 +42,13 @@ class AntlerUwUParser {
     }
 
     data class UwUFile(val pkg: UwUName, val imports: List<UwUImport>, val structs: List<UwUStruct>)
+
+    private fun resolveType(name: String, structs: List<UwUStruct>, imports: List<UwUImport>): UwUType? {
+        return structs.find { it.name.simpleName == name } ?: imports.find { it.name.simpleName == name }?.name?.run {
+//            if (this.names.first() == "javacompat")
+            UwUType.registry[this]
+        }
+    }
 
     fun parseFiles(vararg inp: String): List<UwUFile> {
         // Parsing is done in a multistep process to avoid issues when types reference each other.
@@ -59,7 +69,7 @@ class AntlerUwUParser {
             it.second.foundStructs.map { s ->
                 val name = UwUName(*it.second.pkg + s.IDENTIFIER().text)
 
-                Triple(s, UwUStruct(name, mutableListOf(), mutableListOf(), UwUConstructor.NullConstructor(UwUPrimitive.UwuVoid)), it.second)
+                Triple(s, UwUStruct(name, mutableListOf(), mutableListOf(), mutableListOf()), it.second)
             } to it.second
         }
 
@@ -70,21 +80,23 @@ class AntlerUwUParser {
             for ((struct, instance, finder) in item.first) {
                 val fieldsString = struct.nameTypePair().map { Pair(it.name.text, it.type.text) }
                 val fields = fieldsString.mapIndexed { i, it ->
-                    val type = finder.imports.find { im -> im.name.simpleName == it.second }
-                        ?.run { UwUType.registry[this.name] }
-                        ?: structsWithInstances.flatMap { it.first }.find { s -> s.second.name.simpleName == it.second }?.second
-                    UwuField(it.first, type!!, i * 8)
+                    val type = resolveType(it.second, structsWithInstances.flatMap { it.first.map { v -> v.second } }, finder.imports)
+//                    val type = finder.imports.find { im -> im.name.simpleName == it.second }
+//                        ?.run { UwUType.registry[this.name] }
+//                        ?: structsWithInstances.flatMap { it.first }.find { s -> s.second.name.simpleName == it.second }?.second
+                    UwUStructField(it.first, type!!, i * 8)
                 }
                 instance.fields.addAll(fields)
-                instance.constructor = UwUConstructor.NullConstructor(instance)
+                instance.constructors.add(UwUConstructor.NullConstructor(instance))
 
                 val methods = struct.`fun`()
                 for (method in methods) {
                     val name = method.name.text
                     val args = method.nameTypePair().map {
-                        val type = finder.imports.find { im -> im.name.simpleName == it.type.text }
-                            ?.run { UwUType.registry[this.name] }
-                            ?: structsWithInstances.flatMap { v -> v.first }.find { s -> s.second.name.simpleName == it.type.text }?.second
+                        val type = resolveType(it.type.text, structsWithInstances.flatMap { it.first.map { v -> v.second } }, finder.imports)
+//                        val type = finder.imports.find { im -> im.name.simpleName == it.type.text }
+//                            ?.run { UwUType.registry[this.name] }
+//                            ?: structsWithInstances.flatMap { v -> v.first }.find { s -> s.second.name.simpleName == it.type.text }?.second
                         it.name.text to type!!
                     }
 
@@ -176,10 +188,29 @@ class AntlerUwUParser {
             }
         }
 
+        override fun visitForLoop(ctx: UwULangParser.ForLoopContext) {
+            val old = scope
+            scope = ExecutionScope(scope, scope.variables.toMutableList(), mutableSetOf())
+            val visitor = ExpressionVisitor(imports, scope, obj)
+            visitStatement(ctx.init)
+
+            try {
+                while ((visitor.visitExpression(ctx.condition) as UwUObject.UwUStatic).value != 0L) {
+                    for (s in ctx.braceBlock().statement()) {
+                        visitStatement(s)
+                    }
+                    visitStatement(ctx.each)
+                }
+            } finally {
+                scope.freeVars()
+                scope = old
+            }
+        }
+
         override fun visitVariableAssign(ctx: UwULangParser.VariableAssignContext) {
             val expr = ExpressionVisitor(imports, scope, obj).visitExpression(ctx.expression())!!
             scope.addedRoots.add(expr)
-            val found = scope.variables.find { it.name == ctx.IDENTIFIER().text } ?: UwUVar(ctx.IDENTIFIER().text, nil).also { scope.variables.add(it) }
+            val found = scope.variables.find { it.name == ctx.IDENTIFIER().text } ?: obj.type.fields.find { it.name == ctx.IDENTIFIER().text }?.run { set(obj, expr); return } ?: UwUVar(ctx.IDENTIFIER().text, nil).also { scope.variables.add(it) }
             found.value = expr
         }
 
@@ -188,8 +219,7 @@ class AntlerUwUParser {
             val res = evaluator.visitExpression(ctx.expression(0))!!
             val value = evaluator.visitExpression(ctx.expression(1))!!
             val type = res.type as UwUStruct
-            val field = type.fields.find { it.name == ctx.IDENTIFIER().text }!!
-            type.setField(res as UwUObject.UwURef, field, value)
+            type.field(res, ctx.IDENTIFIER().text, value)
         }
 
         override fun visitStatement(ctx: UwULangParser.StatementContext) {
@@ -200,17 +230,24 @@ class AntlerUwUParser {
                 val asExpr = ctx.expression()
                 val asReturn = ctx.RETURN()
                 val asFieldAssign = ctx.fieldAssign()
+                val asForLoop = ctx.forLoop()
 
                 when {
                     asReturn != null -> {
-                        val res = ExpressionVisitor(imports, scope, obj).visitExpression(ctx.expression())
-                        throw ReturnException(res!!)
+                        val expr = ctx.expression()
+                        if (expr != null) {
+                            val res = ExpressionVisitor(imports, scope, obj).visitExpression(ctx.expression())
+                            throw ReturnException(res!!)
+                        } else {
+                            throw ReturnException(nil)
+                        }
                     }
                     asIf != null -> visitIfStatement(asIf)
                     asWhile != null -> visitWhileLoop(asWhile)
                     asVar != null -> visitVariableAssign(asVar)
                     asExpr != null -> ExpressionVisitor(imports, scope, obj).visitExpression(asExpr)
                     asFieldAssign != null -> visitFieldAssign(asFieldAssign)
+                    asForLoop != null -> visitForLoop(asForLoop)
                 }
             } catch (e: Exception) {
                 println("Exception at line '${ctx.text}'")
@@ -227,10 +264,13 @@ class AntlerUwUParser {
         override fun visitFunctionInvocation(ctx: UwULangParser.FunctionInvocationContext): UwUObject {
             val funName = ctx.IDENTIFIER().symbol.text
             val args = ctx.expression().map { visitExpression(it)!! }
-            val cls = imports.find { it.funName == funName }!!.name
-            val instance = UwUType.registry[cls]!!
-
-            return instance.findMethod(ctx.IDENTIFIER().text, args.map { it.type }).invoke(nil, args)
+            // function imports aren't supported yet, so this is commented out for now
+            // TODO: function imports
+//            val cls = imports.find { it.funName == funName }!!.name
+//            val instance = UwUType.registry[cls]!!
+//
+//            return instance.findMethod(ctx.IDENTIFIER().text, args.map { it.type }).invoke(nil, args)
+            return obj.type.findMethod(funName, args.map { it.type }).invoke(obj, args)
         }
 
         override fun visitExpression(ctx: UwULangParser.ExpressionContext): UwUObject? {
@@ -247,6 +287,7 @@ class AntlerUwUParser {
                 val asString = ctx.STRING_LITERAL()
                 val asNew = ctx.new_()
                 val asCast = ctx.AS()
+                val asComp = ctx.compOp()
 
                 return when {
                     asAddition != null -> {
@@ -286,18 +327,19 @@ class AntlerUwUParser {
                             )
                     }
                     asVariable != null -> {
-                        if (asVariable.text == "this") obj else eScope.variables.find { it.name == ctx.IDENTIFIER().text }?.value
-                            ?: imports.find { it.name.simpleName == ctx.IDENTIFIER().text }!!.run {
-                                UwUConstructor.NullConstructor(UwUType.registry[this.name]!!).invoke(emptyList())
-                            }
+                        val name = asVariable.text
+                        val asThis = if (name == "this") obj else null
+                        val asLocalVar = eScope.variables.find { it.name == name }?.value
+                        val asObjectField = obj.type.fieldOrNull(obj, name)
+                        // TODO: also search in the file
+                        val asImportedName = imports.find { it.name.simpleName == name }?.run { UwUType.registry[this.name]!!.nullConstructor.invoke(emptyList()) }
+
+                        return asThis ?: asLocalVar ?: asObjectField ?: asImportedName!!
                     }
                     asFieldAccess != null -> {
                         visitExpression(ctx.expression(0)!!)!!
                             .run {
-                                (type as UwUStruct).field(
-                                    this as UwUObject.UwURef,
-                                    (type as UwUStruct).fields.find { it.name == asFieldAccess.IDENTIFIER().text }!!
-                                )
+                                type.field(this, asFieldAccess.IDENTIFIER().text)
                             }
                     }
                     asMethodInv != null -> {
@@ -312,16 +354,15 @@ class AntlerUwUParser {
                     asFloat != null -> UwUObject.UwUStatic(asFloat.text.toDouble().long(), UwUPrimitive.UwUDouble)
                     asString != null -> {
                         val str = asString.text.removeSurrounding("\"", "\"")
-                        val size = UwUPrimitive.UwULong.constructor.invoke(emptyList())
+                        val size = UwUPrimitive.UwULong.constructor(emptyList())
                             .apply { (this as UwUObject.UwUStatic).value = str.length.toLong() }
-                        val obj = UwUString.constructor.invoke(listOf(size)) as UwUObject.UwURef
+                        val obj = UwUString.constructor(listOf(size)) as UwUObject.UwURef
                         eScope.addRoot(obj)
 
                         val chars =
                             str.toCharArray().map { UwUObject.UwUStatic(it.code.toLong(), UwUPrimitive.UwUChar) }
 
-                        val array =
-                            UwUString.field(obj, UwUString.fields.find { it.name == "chars" }!!) as UwUObject.UwURef
+                        val array = UwUString.field(obj, "chars") as UwUObject.UwURef
                         UwUArray.setItems(array, chars)
 
                         obj
@@ -331,7 +372,7 @@ class AntlerUwUParser {
                             .run { UwUType.registry[this.name]!! }
                         val args = asNew.expression().map { visitExpression(it)!! }
 
-                        type.constructor.invoke(args)
+                        type.constructor(args)
                     }
                     asCast != null -> {
                         val expr = visitExpression(ctx.expression(0))!!
@@ -340,11 +381,38 @@ class AntlerUwUParser {
                         require(expr.type == type)
                         expr
                     }
+                    asComp != null -> {
+                        val a = visitExpression(ctx.expression(0))!!
+                        val b = visitExpression(ctx.expression(1))!!
+
+                        val aLong = (a as? UwUObject.UwUStatic)?.value
+                        val bLong = (b as? UwUObject.UwUStatic)?.value
+
+                        UwUObject.UwUStatic(if (when {
+                            asComp.EQUALS() != null -> comp(a, b, aLong, bLong, { c, d -> c == d }, { c, d -> c == d }, { c, d -> c == d }, { c, d -> c == d }, { c, d -> if (c is UwUObject.UwURef) { c.address == (d as? UwUObject.UwURef)?.address } else { c == d /* TODO: java object compatibility */} })
+                            asComp.GREATERTHAN() != null -> comp(a, b, aLong, bLong, { c, d -> c > d }, { c, d -> c > d }, { c, d -> c > d }, { c, d -> c > d }, { _, _ -> throw UnsupportedOperationException() })
+                            asComp.GREATERTHANEQUALS() != null -> comp(a, b, aLong, bLong, { c, d -> c >= d }, { c, d -> c >= d }, { c, d -> c >= d }, { c, d -> c >= d }, { _, _ -> throw UnsupportedOperationException() })
+                            asComp.LESSTHAN() != null -> comp(a, b, aLong, bLong, { c, d -> c < d }, { c, d -> c < d }, { c, d -> c < d }, { c, d -> c < d }, { _, _ -> throw UnsupportedOperationException() })
+                            asComp.LESSTHANEQUALS() != null -> comp(a, b, aLong, bLong, { c, d -> c <= d }, { c, d -> c <= d }, { c, d -> c <= d }, { c, d -> c <= d }, { _, _ -> throw UnsupportedOperationException() })
+                            else -> throw RuntimeException("w h a t")
+                        }) 1L else 0L, UwUPrimitive.UwUBoolean)
+                    }
                     else -> nil
                 }?.apply { if (this is UwUObject.UwURef) eScope.addRoot(this) }
             } catch (e: Exception) {
                 println("Exception in expression ${ctx.text}")
                 throw e
+            }
+        }
+
+        // TODO: comparing different types, comparing to null
+        private inline fun comp(a: UwUObject, b: UwUObject, aLong: Long?, bLong: Long?, long: (Long, Long) -> Boolean, double: (Double, Double) -> Boolean, boolean: (Boolean, Boolean) -> Boolean, char: (Char, Char) -> Boolean, obj: (UwUObject, UwUObject) -> Boolean): Boolean {
+            return when (a.type) {
+                UwUPrimitive.UwULong -> long(aLong!!, bLong!!)
+                UwUPrimitive.UwUDouble -> double(aLong!!.double(), bLong!!.double())
+                UwUPrimitive.UwUBoolean -> boolean(aLong!! != 0L, bLong!! != 0L)
+                UwUPrimitive.UwUChar -> char(aLong!!.toInt().toChar(), bLong!!.toInt().toChar())
+                else -> obj(a, b)
             }
         }
     }
@@ -383,27 +451,21 @@ fun main() {
     val inp = """
         package com.github.bwahbwahbwoopstew.test;
         
+        impowt owo.cowwections.Wist;
         impowt uwu.System;
         impowt uwu.Wong;
-        impowt uwu.Doubwe;
-        impowt uwu.Awway;
-        impowt uwu.Stwing;
-        impowt owo.cowwections.Wist;
         
         stwuct Foo {
             static fuwn bwah() {
-                wet w = Wist.cweate(Wong);
-                
-                mewt i = 0;
-                whiwe (i.wessthan(24)) {
-                    w.add(i);
-                    i = i + 1;
+                wet wist = Wist.cweate(Wong);
+                fow (mewt i = 0; i < 10; i = i + 1;) {
+                    wist.add(i * 5);
                 }
                 
-                i = 0;
-                whiwe (i.wessthan(24)) {
-                    System.pwintwn(w.get(i));
-                    i = i + 1;
+                wist.wemove(5);
+                
+                fow (mewt i = 0; i < wist.size; i = i + 1;) {
+                    System.pwintwn(wist.get(i));
                 }
             }
         }
@@ -413,7 +475,7 @@ fun main() {
 
     val resolvedType = UwUType.registry[UwUName("com", "github", "bwahbwahbwoopstew", "test", "Foo")] as UwUStruct
     val method = resolvedType.methods.find { it.name == "bwah" }!!
-    val instance = resolvedType.constructor.invoke(emptyList())
+    val instance = resolvedType.constructor(emptyList())
     method.invoke(instance, emptyList())
     UwUMem.gc()
     require(UwUMem.rootObjects.isEmpty())

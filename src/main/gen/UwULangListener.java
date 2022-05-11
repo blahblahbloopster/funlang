@@ -1,4 +1,4 @@
-// Generated from /home/foo/synced/uwu-lang/src/main/kotlin/UwULang.g4 by ANTLR 4.10.1
+// Generated from /home/max/synced/uwu-lang/src/main/kotlin/UwULang.g4 by ANTLR 4.10.1
 import org.antlr.v4.runtime.tree.ParseTreeListener;
 
 /**
@@ -77,6 +77,16 @@ public interface UwULangListener extends ParseTreeListener {
 	 */
 	void exitMulOp(UwULangParser.MulOpContext ctx);
 	/**
+	 * Enter a parse tree produced by {@link UwULangParser#compOp}.
+	 * @param ctx the parse tree
+	 */
+	void enterCompOp(UwULangParser.CompOpContext ctx);
+	/**
+	 * Exit a parse tree produced by {@link UwULangParser#compOp}.
+	 * @param ctx the parse tree
+	 */
+	void exitCompOp(UwULangParser.CompOpContext ctx);
+	/**
 	 * Enter a parse tree produced by {@link UwULangParser#expression}.
 	 * @param ctx the parse tree
 	 */
@@ -126,6 +136,26 @@ public interface UwULangListener extends ParseTreeListener {
 	 * @param ctx the parse tree
 	 */
 	void exitWhileLoop(UwULangParser.WhileLoopContext ctx);
+	/**
+	 * Enter a parse tree produced by {@link UwULangParser#braceBlock}.
+	 * @param ctx the parse tree
+	 */
+	void enterBraceBlock(UwULangParser.BraceBlockContext ctx);
+	/**
+	 * Exit a parse tree produced by {@link UwULangParser#braceBlock}.
+	 * @param ctx the parse tree
+	 */
+	void exitBraceBlock(UwULangParser.BraceBlockContext ctx);
+	/**
+	 * Enter a parse tree produced by {@link UwULangParser#forLoop}.
+	 * @param ctx the parse tree
+	 */
+	void enterForLoop(UwULangParser.ForLoopContext ctx);
+	/**
+	 * Exit a parse tree produced by {@link UwULangParser#forLoop}.
+	 * @param ctx the parse tree
+	 */
+	void exitForLoop(UwULangParser.ForLoopContext ctx);
 	/**
 	 * Enter a parse tree produced by {@link UwULangParser#variableAssign}.
 	 * @param ctx the parse tree

@@ -1,12 +1,14 @@
+import UwUMem.data
 import UwUMem.malloc
 import UwUMem.nil
-import stdlib.UwUString
 import kotlin.random.Random.Default.nextLong
 
 sealed class UwUType(val name: UwUName) {
     abstract val methods: List<UwUMethod>
-    abstract val constructor: UwUConstructor
+    abstract val constructors: List<UwUConstructor>
     abstract val isStatic: Boolean
+    abstract val fields: List<UwUField>
+    abstract val nullConstructor: UwUConstructor
 
     fun findMethod(name: String, args: List<UwUType>): UwUMethod {
         return methods.find { it.name == name && it.arguments.mapIndexed { index, pair -> pair.second == args.getOrNull(index) || pair.second === UwUAny }.all { v -> v } } ?: throw RuntimeException("Method '$name' with arguments $args not found for type ${this.name}!")
@@ -61,9 +63,47 @@ sealed class UwUType(val name: UwUName) {
         registry[name] = this
         idRegistry[id] = this
     }
+
+    fun field(obj: UwUObject, name: String): UwUObject {
+        val field = fields.find { it.name == name } ?: throw RuntimeException("Field '$name' not found on object of type ${this.name}!")
+        return field.retrieve(obj)
+    }
+
+    fun fieldOrNull(obj: UwUObject, name: String): UwUObject? {
+        val field = fields.find { it.name == name } ?: return null
+        return field.retrieve(obj)
+    }
+
+    fun field(obj: UwUObject, name: String, value: UwUObject) {
+        val field = fields.find { it.name == name } ?: throw RuntimeException("Field '$name' not found on object of type ${this.name}!")
+        field.set(obj, value)
+    }
+
+    fun constructor(args: List<UwUObject>): UwUObject {
+        val cons = constructors.find { it.arguments.size == args.size && it.arguments.mapIndexed { index, pair -> pair.second == args[index].type }.all { v -> v } } ?: throw RuntimeException("Constructor not found!")  // TODO: arg types in error
+        return cons.invoke(args)
+    }
 }
 
-class UwuField(val name: String, val type: UwUType, val offset: Int)
+interface UwUField {
+    val name: String
+    val type: UwUType
+
+    fun retrieve(obj: UwUObject): UwUObject
+
+    fun set(obj: UwUObject, value: UwUObject)
+}
+
+class UwUStructField(override val name: String, override val type: UwUType, val offset: Int) : UwUField {
+    override fun retrieve(obj: UwUObject): UwUObject {
+        val pointer = (obj as UwUObject.UwURef).address.area.first + offset
+        return type.getObj(data, pointer)
+    }
+
+    override fun set(obj: UwUObject, value: UwUObject) {
+        type.putObj(data, (obj as UwUObject.UwURef).address.area.first + offset, value)
+    }
+}
 
 interface UwUMethod {
     val name: String
@@ -99,8 +139,11 @@ interface UwUConstructor {
                 return UwUObject.UwUStatic(-1L, type)
             } else if (type is UwUStruct) {
                 val obj = malloc(type.sizeWords, type)
-                UwUMem.data.fill(-1L, obj.area.first, obj.area.last + 1)
+                data.fill(-1L, obj.area.first, obj.area.last + 1)
                 return UwUObject.UwURef(obj, type)
+            } else if (type is JavaType) {
+                val obj = JavaObject(null, type)
+                return obj
             }
             throw NotImplementedError("No default constructor for ${type.name}!")
         }
@@ -111,7 +154,7 @@ object UwUMem {
     var currentFlag = false
 
     // 8 MiB ought to be enough for anybody
-    val data = LongArray(1024 * 1024)
+    val data = LongArray(512)
 
     val tree = MemoryBlock(data.indices)
 
@@ -253,16 +296,19 @@ sealed interface UwUObject {
 
 sealed class UwUPrimitive(name: UwUName) : UwUType(name) {
     override val isStatic: Boolean = true
+    override val fields: List<UwUField> = emptyList()
+    override val nullConstructor = UwUConstructor.NativeConstructor(emptyList()) { UwUObject.UwUStatic(-1L, this) }
+
     override fun free(obj: UwUObject) {}
 
     override fun refs(obj: UwUObject): List<UwUObject> = emptyList()
 
     object UwuVoid : UwUPrimitive(UwUName("uwu", "Void")) {
         override val methods: List<UwUMethod> = emptyList()
-        override val constructor: UwUConstructor = UwUConstructor.NativeConstructor(emptyList()) { nil }
+        override val constructors: List<UwUConstructor> = listOf(nullConstructor)
     }
     object UwULong : UwUPrimitive(UwUName("uwu", "Wong")) {
-        override val constructor: UwUConstructor = UwUConstructor.NativeConstructor(emptyList()) { UwUObject.UwUStatic(0L, UwULong) }
+        override val constructors: List<UwUConstructor> = listOf(nullConstructor)
         override val methods = listOf(
             UwUMethod.NativeMethod("pwus", listOf("b" to UwULong)) { a, b -> UwUObject.UwUStatic((a as UwUObject.UwUStatic).value + (b[0] as UwUObject.UwUStatic).value, UwULong) },
             UwUMethod.NativeMethod("minus", listOf("b" to UwULong)) { a, b -> UwUObject.UwUStatic((a as UwUObject.UwUStatic).value - (b[0] as UwUObject.UwUStatic).value, UwULong) },
@@ -273,7 +319,7 @@ sealed class UwUPrimitive(name: UwUName) : UwUType(name) {
         )
     }
     object UwUDouble : UwUPrimitive(UwUName("uwu", "Doubwe")) {
-        override val constructor: UwUConstructor = UwUConstructor.NativeConstructor(emptyList()) { UwUObject.UwUStatic(0L, UwUDouble) }
+        override val constructors: List<UwUConstructor> = listOf(nullConstructor)
         fun Long.double() = java.lang.Double.longBitsToDouble(this)
         fun Double.long() = java.lang.Double.doubleToLongBits(this)
 
@@ -286,12 +332,12 @@ sealed class UwUPrimitive(name: UwUName) : UwUType(name) {
     }
 
     object UwUChar : UwUPrimitive(UwUName("uwu", "Chaw")) {
-        override val constructor: UwUConstructor = UwUConstructor.NativeConstructor(emptyList()) { UwUObject.UwUStatic(0L, UwUChar) }
+        override val constructors: List<UwUConstructor> = listOf(nullConstructor)
         override val methods: List<UwUMethod> = emptyList()
     }
 
     object UwUBoolean : UwUPrimitive(UwUName("uwu", "Boowean")) {
-        override val constructor: UwUConstructor = UwUConstructor.NativeConstructor(emptyList()) { UwUObject.UwUStatic(0L, UwUBoolean) }
+        override val constructors: List<UwUConstructor> = listOf(nullConstructor)
         override val methods: List<UwUMethod> = emptyList()
     }
 }
@@ -315,30 +361,25 @@ class UwUName(vararg val names: String) {
 
 open class UwUStruct(
     name: UwUName,
-    val fields: MutableList<UwuField>,
+    override val fields: MutableList<UwUStructField>,
     override val methods: MutableList<UwUMethod>,
-    override var constructor: UwUConstructor,
+    override val constructors: MutableList<UwUConstructor>,
 ) : UwUType(name) {
     override val isStatic: Boolean = false
     val sizeWords get() = (fields.maxOfOrNull { it.offset } ?: -1) + 1
+    override val nullConstructor: UwUConstructor = UwUConstructor.NullConstructor(this)
 
     override fun free(obj: UwUObject) {}
 
-    override fun refs(obj: UwUObject): List<UwUObject> = fields.mapNotNull { field(obj as? UwUObject.UwURef ?: return@mapNotNull null, it) }.filter { !it.type.isStatic }
-
-    fun field(obj: UwUObject.UwURef, field: UwuField): UwUObject {
-        return field.type.getObj(UwUMem.data, obj.address.area.first + field.offset)
-    }
-
-    fun setField(obj: UwUObject.UwURef, field: UwuField, value: UwUObject) {
-        field.type.putObj(UwUMem.data, obj.address.area.first + field.offset, value)
-    }
+    override fun refs(obj: UwUObject): List<UwUObject> = fields.mapNotNull { field(obj as? UwUObject.UwURef ?: return@mapNotNull null, it.name) }.filter { !it.type.isStatic }
 }
 
 object UwUAny : UwUType(UwUName("uwu", "Any")) {
     override val methods: List<UwUMethod> = emptyList()
-    override val constructor: UwUConstructor get() = TODO("Not yet implemented")
+    override val constructors: List<UwUConstructor> get() = TODO("Not yet implemented")
     override val isStatic: Boolean get() = TODO("Not yet implemented")
+    override val fields: List<UwUField> get() = TODO("Not yet implemented")
+    override val nullConstructor: UwUConstructor get() = TODO()
 
     override fun refs(obj: UwUObject): List<UwUObject> {
         TODO("Not yet implemented")
@@ -354,30 +395,32 @@ object UwUArray : UwUType(UwUName("uwu", "Awway")) {
         UwUMethod.NativeMethod("get", listOf("index" to UwUPrimitive.UwULong)) { a, b ->
             val index = (b[0] as UwUObject.UwUStatic).value
             val addr = (a as UwUObject.UwURef).address.area.first + index + 2
-            val type = idRegistry[UwUMem.data[a.address.area.first + 1]]!!
-            type.getObj(UwUMem.data, addr.toInt())
+            val type = idRegistry[data[a.address.area.first + 1]]!!
+            type.getObj(data, addr.toInt())
         },
         UwUMethod.NativeMethod("set", listOf("index" to UwUPrimitive.UwULong, "obj" to UwUAny)) { a, b ->
             val index = (b[0] as UwUObject.UwUStatic).value
             val toPut = b[1]
             val addr = (a as UwUObject.UwURef).address.area.first + index + 2
-            putObj(UwUMem.data, addr.toInt(), toPut)
+            putObj(data, addr.toInt(), toPut)
             nil
         },
         UwUMethod.NativeMethod("getSize", emptyList()) { a, b ->
-            UwUPrimitive.UwULong.getObj(UwUMem.data, (a as UwUObject.UwURef).address.area.first)
+            UwUPrimitive.UwULong.getObj(data, (a as UwUObject.UwURef).address.area.first)
         },
         UwUMethod.NativeMethod("getType", emptyList()) { a, _ ->
-            idRegistry[UwUMem.data[(a as UwUObject.UwURef).address.area.first + 1]]!!.run { UwUConstructor.NullConstructor(this).invoke(emptyList()) }
+            idRegistry[data[(a as UwUObject.UwURef).address.area.first + 1]]!!.run { UwUConstructor.NullConstructor(this).invoke(emptyList()) }
         }
     )
-    override val constructor: UwUConstructor = UwUConstructor.NativeConstructor(listOf("type" to UwUAny,"size" to UwUPrimitive.UwULong)) { args ->
+    override val fields: List<UwUField> = emptyList()
+    override val constructors: List<UwUConstructor> = listOf(UwUConstructor.NativeConstructor(listOf("type" to UwUAny,"size" to UwUPrimitive.UwULong)) { args ->
         val size = (args[1] as UwUObject.UwUStatic).value.toInt()
         val region = malloc(size + 2, this)
-        UwUMem.data[region.area.first] = size.toLong()
-        UwUMem.data[region.area.first + 1] = args[0].type.id
+        data[region.area.first] = size.toLong()
+        data[region.area.first + 1] = args[0].type.id
         UwUObject.UwURef(region, this)
-    }
+    })
+    override val nullConstructor: UwUConstructor get() = TODO()
     override val isStatic = false
 
     override fun free(obj: UwUObject) {}
@@ -386,8 +429,8 @@ object UwUArray : UwUType(UwUName("uwu", "Awway")) {
 
     fun items(obj: UwUObject.UwURef): List<UwUObject> {
         val start = obj.address.area.first
-        val size = UwUMem.data[start].toInt()
-        val type = UwUMem.data[start + 1]
+        val size = data[start].toInt()
+        val type = data[start + 1]
         val items = mutableListOf<UwUObject>()
         for (i in start + 2 .. start + size + 1) {
             val item = idRegistry[type]!!.getObj(UwUMem.data, i)
@@ -398,9 +441,9 @@ object UwUArray : UwUType(UwUName("uwu", "Awway")) {
 
     fun setItems(obj: UwUObject.UwURef, items: List<UwUObject>) {
         val start = obj.address.area.first
-        val size = UwUMem.data[start].toInt()
+        val size = data[start].toInt()
         for ((n, i) in (start + 2 .. start + size + 1).withIndex()) {
-            items[n].type.putObj(UwUMem.data, i, items[n])
+            items[n].type.putObj(data, i, items[n])
         }
     }
 }

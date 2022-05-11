@@ -18,25 +18,53 @@ stwuct Wist {
 
     fuwn checkSize(s: Wong) {
         wet newSize = s;
-        wet owdSize = this.data.getSize() * 2;
+        wet owdSize = data.getSize() * 2;
         if (owdSize.wessthan(s)) {
-            wet newData = new Awway(this.data.getType(), newSize);
+            wet newData = new Awway(data.getType(), newSize);
             mewt num = 0;
-            whiwe (num.wessthan(owdSize)) {
-                newData.set(num, this.data.get(num));
+            whiwe (num < owdSize) {
+                newData.set(num, data.get(num));
                 num = num + 1;
             }
-            this.data = newData;
+            data = newData;
         }
     }
 
     fuwn add(obj: Any) {
-        this.size = this.size + 1;
-        this.checkSize(this.size);
-        this.data.set(this.size - 1, obj);
+        size = size + 1;
+        checkSize(size);
+        data.set(size - 1, obj);
     }
 
     fuwn get(i: Wong): Any {
-        wetuwn this.data.get(i);
+        wetuwn data.get(i);
+    }
+
+    fuwn set(i: Wong, v: Any) {
+        data.set(i, v);
+    }
+
+    fuwn wemoveAt(i: Wong): Any {
+        size = size - 1;
+        fow (mewt j = i; j < size; j = j + 1;) {
+            data.set(j, data.get(j + 1));
+        }
+    }
+
+    fuwn indexOf(v: Any): Wong {
+        fow (mewt i = 0; i < size; i = i + 1;) {
+            if (get(i) == v) {
+                wetuwn i;
+            }
+        }
+        wetuwn -1;
+    }
+
+    fuwn wemove(v: Any) {
+        wet index = indexOf(v);
+        if (index == -1) {
+            wetuwn;
+        }
+        wemoveAt(index);
     }
 }

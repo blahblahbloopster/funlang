@@ -1,6 +1,6 @@
 grammar UwULang;
-INTEGER : ('0'..'9') + ('.' ('0'..'9') +)? ;
-FLOAT : '-'? ('0'..'9')+ ('.'('0'..'9')+) ('e' '-'? ('0'..'9')+ ('.' ('0'..'9')+)?) ;
+INTEGER : '-'? ('0'..'9')+;
+FLOAT : '-'? ('0'..'9')+ ('.'('0'..'9')+) ('e' '-'? ('0'..'9')+ ('.' ('0'..'9')+)?)?;
 WS : [ \t\r\n]+ -> skip ;
 
 OPEN_PAREN: '(';
@@ -19,6 +19,7 @@ STATIC: 'static';
 NEW: 'new';
 IF: 'if';
 WHILE: 'whiwe';
+FOR: 'fow';
 LET: 'wet';
 MUT: 'mewt';
 IMPORT: 'impowt';
@@ -28,7 +29,7 @@ AS: 'as';
 
 IDENTIFIER: [a-zA-Z_] [a-zA-Z_0-9]*;
 
-KEYWORD : STRUCT | FUN | NEW | IF | WHILE | LET | MUT | IMPORT | RETURN | PACKAGE | AS;
+KEYWORD : STRUCT | FUN | NEW | IF | WHILE | LET | MUT | IMPORT | RETURN | PACKAGE | AS | FOR;
 
 nameTypePair: name=IDENTIFIER COLON type=IDENTIFIER;
 
@@ -65,11 +66,12 @@ expression :
     STRING_LITERAL |
     expression mulOp expression |
     expression addOp expression |
+    expression compOp expression |
     new |
     expression AS IDENTIFIER
 ;
 
-statement: ifStatement | whileLoop | (variableAssign SEMICOLON) | (expression SEMICOLON) | (RETURN expression SEMICOLON) | (fieldAssign SEMICOLON);
+statement: ifStatement | whileLoop | forLoop | (variableAssign SEMICOLON) | (expression SEMICOLON) | (RETURN expression? SEMICOLON) | (fieldAssign SEMICOLON);
 
 fieldAssign:
     expression '.' IDENTIFIER '=' expression
@@ -81,6 +83,14 @@ ifStatement:
 
 whileLoop:
     WHILE OPEN_PAREN expression CLOSE_PAREN OPEN_BRACE statement* CLOSE_BRACE
+;
+
+braceBlock:
+    OPEN_BRACE statement* CLOSE_BRACE
+;
+
+forLoop:
+    FOR OPEN_PAREN init=statement condition=expression SEMICOLON each=statement CLOSE_PAREN braceBlock
 ;
 
 variableAssign:
